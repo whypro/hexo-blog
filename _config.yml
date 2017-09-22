@@ -6,13 +6,13 @@
 title: Hexo
 subtitle:
 description:
-author: John Doe
+author: whypro
 language:
 timezone:
 
 # URL
 ## If your site is put in a subdirectory, set url as 'http://yoursite.com/child' and root as '/child/'
-url: http://yoursite.com
+url: http://whypro.github.io/hexo-blog
 root: /
 permalink: :year/:month/:day/:title/
 permalink_defaults:
@@ -76,5 +76,7 @@ theme: alpha-dust
 
 # Deployment
 ## Docs: https://hexo.io/docs/deployment.html
-deploy:
-  type:
+deploy:  
+  type: git
+  repository: git@github.com:whypro/hexo-blog.git
+  branch: gh-pages
