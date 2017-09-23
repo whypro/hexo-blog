@@ -19,7 +19,8 @@ archive_date_format: YYYY-MM
 # Comments.
 comments:
   # Disqus comments
-  disqus_shortname: orpyhw
+  disqus_shortname:
+  #disqus_shortname: orpyhw
 
 # Google Analytics Tracking ID
 google_analytics:
