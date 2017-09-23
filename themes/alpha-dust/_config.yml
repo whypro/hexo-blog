@@ -14,12 +14,12 @@ menu:
 default_post_title: Untitled
 
 # Archive Date Format
-archive_date_format: MMM YYYY
+archive_date_format: YYYY-MM
 
 # Comments.
 comments:
   # Disqus comments
-  disqus_shortname:
+  disqus_shortname: orpyhw
 
 # Google Analytics Tracking ID
 google_analytics:
