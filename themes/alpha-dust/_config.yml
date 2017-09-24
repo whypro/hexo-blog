@@ -26,7 +26,7 @@ comments:
 google_analytics:
 
 # Social Accounts
-twitter_url: https://twitter.com/?lang=en
+twitter_url: https://twitter.com/
 facebook_url: https://www.facebook.com/
 #instagram_url: https://www.instagram.com/
 #dribble_url: https://dribbble.com/
@@ -35,7 +35,7 @@ github_url: https://github.com/whypro
 #behance_url: https://www.behance.net/
 #fivehundredpx_url: https://500px.com/
 email_url: whypro@live.cn
-rss_url: \#
+rss_url: 
 
 # Footer About Text
 footer_about: "This theme was developed by <a href=\"https://github.com/klugjo\">Jonathan Klughertz</a>. The source code is available on Github. Create Websites. Make Magic."
