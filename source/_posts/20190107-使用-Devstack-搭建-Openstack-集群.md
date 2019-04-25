@@ -4,7 +4,6 @@ tags:
   - 原创
   - Openstack
   - 云计算
-originContent: ''
 categories: []
 toc: true
 date: 2019-01-07 15:22:00
@@ -75,7 +74,7 @@ IP_VERSION=4
 
 如果需要 ipv6，则需要修改以下参数：
 
-``` shell
+``` sh
 net.ipv6.conf.all.disable_ipv6=0
 net.ipv6.conf.default.disable_ipv6=0
 net.ipv6.conf.lo.disable_ipv6=0
@@ -85,25 +84,25 @@ sysctl -p
 
 不要按照 devstack 官方文档创建 `local.sh`。因为 openstack rocky 已经默认使用 neutron 了，这个脚本对 neutron 没有什么作用。[https://bugs.launchpad.net/devstack/+bug/1783576](https://bugs.launchpad.net/devstack/+bug/1783576)
 
-```
+``` sh
 for i in `seq 2 10`; do /opt/stack/nova/bin/nova-manage fixed reserve 10.4.128.$i; done
 ```
 
 多节点如果出现调度错误，需要执行：
 
-``` shell
+``` sh
 ./tools/discover_hosts.sh
 ```
 
 或者：
 
-``` shell
+``` sh
 nova-manage cell_v2 discover_hosts --verbose
 ```
 
 如果如果遇到一些未知的问题，尝试拆除环境，清除所有资源后重试：
 
-``` shell
+``` sh
 ./unstack.sh
 ./clean.sh
 ./stack.sh
@@ -111,7 +110,7 @@ nova-manage cell_v2 discover_hosts --verbose
 
 ## 镜像创建
 
-``` shell
+``` sh
 openstack image create --public --disk-format qcow2 --container-format bare --file xenial-server-cloudimg-amd64-disk1.img ubuntu-xenial-server-amd64
 ```
 
@@ -119,7 +118,7 @@ openstack image create --public --disk-format qcow2 --container-format bare --fi
 
 首先进行 admin 认证鉴权：
 
-```
+``` sh
 sudo su - stack
 cd /opt/stack/devstack
 source openrc
@@ -127,14 +126,14 @@ source openrc
 
 创建安全组规则，允许 ping 和 ssh：
 
-``` shell
+``` sh
 openstack security group rule create --proto icmp default
 openstack security group rule create --proto tcp --dst-port 22 default
 ```
 
 创建测试实例：
 
-``` shell
+``` sh
 openstack server create --flavor m1.tiny \
 --image $(openstack image list | grep cirros | cut -f3 -d '|') \
 --nic net-id=$(openstack network list | grep private | cut -f2 -d '|' | tr -d ' ') \
@@ -143,13 +142,13 @@ openstack server create --flavor m1.tiny \
 
 创建 floating IP：
 
-```
+``` sh
 openstack floating ip create public
 ```
 
 将 floating IP 与实例绑定：
 
-``` shell
+``` sh
 openstack server add floating ip vm 10.20.102.238
 ```
 
@@ -162,7 +161,7 @@ cubswin:)
 
 vm 如果需要上外网，需要配置 nat。在物理机上执行：
 
-``` shell
+``` sh
 #ifconfig br-ex 10.20.102.223/27
 iptables -t nat -I POSTROUTING -s 10.20.102.223/27 -j MASQUERADE
 iptables -I FORWARD -s 10.20.102.223/27 -j ACCEPT
@@ -173,14 +172,14 @@ iptables -I FORWARD -d 10.20.102.223/27 -j ACCEPT
 
 创建 pv 和 vg：
 
-``` shell
+``` sh
 pvcreate /dev/sdb1
 vgcreate stack-volumes-hdd /dev/sdb1
 ```
 
 配置 cinder：
 
-``` shell
+``` sh
 vim /etc/cinder/cinder.conf
 ```
 
@@ -201,13 +200,13 @@ volume_backend_name = hdd
 
 重启 openstack：
 
-``` shell
+``` sh
 systemctl restart devstack@*
 ```
 
 创建卷类型：
 
-``` shell
+``` sh
 openstack volume type create hdd
 openstack volume type set hdd --property volume_backend_name=hdd
 ```
@@ -218,7 +217,7 @@ openstack volume type set hdd --property volume_backend_name=hdd
 
 - 排查
 
-``` shell
+``` sh
 sudo journalctl -f --unit devstack@c-vol
 ```
 
