@@ -4,7 +4,6 @@ tags:
   - 原创
   - Kubernetes
   - K8S
-originContent: ''
 categories: []
 toc: true
 date: 2018-03-01 18:10:00
@@ -138,7 +137,11 @@ kubectl autoscale deployment nginx-deployment --min=10 --max=15 --cpu-percent=80
        track: stable
     ...
     image: gb-frontend:v3
+```
+
 金丝雀版本的定义如下：
+
+```
     name: frontend-canary
     replicas: 1
     ...
@@ -174,7 +177,11 @@ kubectl autoscale deployment nginx-deployment --min=10 --max=15 --cpu-percent=80
        version: v3
     ...
     image: gb-frontend:v3
+```
+
 deployment-2 定义如下：
+
+```
     name: frontend
     replicas: 3
     ...
