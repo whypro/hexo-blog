@@ -2,6 +2,7 @@
 title: Hello, Hexo.
 date: 2017-09-24 01:44:27
 tags: [原创]
+toc: true
 ---
 
 周末折腾了半天，终于将博客从 Pelican 转到了 Hexo，在此记录一下。
