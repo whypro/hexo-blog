@@ -21,6 +21,8 @@ airodump-ng \[-w filename\] \[-c channel\] mon0
 
 其中，-w 后的参数为保存的文件名，-c 后的参数为频段
 
+<!-- more -->
+
 **3. aireplay-ng：根据需要创建特殊的无线网络数据报文**
 
 _**aireplay-ng -9：注入攻击链路质量测试**_

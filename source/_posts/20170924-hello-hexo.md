@@ -16,6 +16,8 @@ tags: [原创]
 
 Hexo 使用 Nodejs 开发，渲染速度相对于 Python 和 Ruby 来说很快，而且 CLI 设计也非常人性化，配置简单，支持的插件也有很多，使用 `npm` 来管理。也许正是由于开发语言的关系，Hexo 的主题质量都非常高，都非常好看，让人眼花缭乱（[https://hexo.io/themes/index.html](https://hexo.io/themes/index.html)）。老实说我是被这款名叫 [AlphaDust](https://github.com/klugjo/hexo-theme-alpha-dust) 的主题吸引了，非常有科技感，而且响应式在移动设备上也比较完美，无论是英文字体还是中文字体都支持很好，对作者的敬意油然而生。当然 [NexT](http://theme-next.iissnan.com/) 也是一款非常优秀的主题，以后有机会可以尝试一下（^_^）。
 
+<!-- more -->
+
 ## 安装和配置
 
 ### 安装

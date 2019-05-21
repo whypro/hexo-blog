@@ -66,13 +66,14 @@ time_format: HH:mm:ss
 
 # Pagination
 ## Set per_page to 0 to disable pagination
-per_page: 10
+per_page: 0
 pagination_dir: page
 
 # Extensions
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/
-theme: alpha-dust
+#theme: alpha-dust
+theme: freemind.386
 
 # Deployment
 ## Docs: https://hexo.io/docs/deployment.html
@@ -81,5 +82,7 @@ deploy:
   repository: git@github.com:whypro/hexo-blog.git
   branch: gh-pages
 
-all_minifier: true
+all_minifier: false
 
+# Disqus
+disqus_shortname: hexo-blog-everlasting

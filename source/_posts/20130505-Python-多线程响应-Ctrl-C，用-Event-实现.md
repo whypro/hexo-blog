@@ -20,6 +20,8 @@ date: 2013-05-05 18:39:00
 
 【[这篇文章](http://my.oschina.net/apoptosis/blog/125099)】提供了一种方法，我对其做了进一步改进，写了如下的代码，希望能起到抛砖引玉的作用：
 
+<!-- more -->
+
 ``` python
 # -*- coding: utf-8 -*-
 import threading

@@ -20,6 +20,8 @@ date: 2019-01-07 15:22:00
 
 [https://docs.openstack.org/devstack/rocky/guides/devstack-with-nested-kvm.html](https://docs.openstack.org/devstack/rocky/guides/devstack-with-nested-kvm.html)
 
+<!-- more -->
+
 control 节点配置:
 
 ``` ini

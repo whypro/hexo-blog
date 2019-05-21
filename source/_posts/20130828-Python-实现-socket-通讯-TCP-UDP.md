@@ -54,6 +54,8 @@ ss.close()
 s.close()
 ```
 
+<!-- more -->
+
 ## 2.2 TCP-Client
 
 ``` python

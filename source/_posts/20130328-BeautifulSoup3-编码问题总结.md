@@ -6,6 +6,8 @@ tags: [原创, 爬虫, Python]
 
 关于 BeautifulSoup3 对 `gb2312` 编码的网页解析的乱码问题，【[这篇文章](http://leeon.me/a/beautifulsoup-chinese-page-resolve)】提出了一个勉强能用的解决方法。即如果中文页面编码是 `gb2312`，`gbk`，在 BeautifulSoup 构造器中传入 `fromEncoding="gb18030"` 参数即可解决乱码问题，即使分析的页面是 `utf8` 的页面使用 `gb18030` 也不会出现乱码问题！如：
 
+<!-- more -->
+
 ``` python
 from urllib2 import urlopen
 from BeautifulSoup import BeautifulSoup
