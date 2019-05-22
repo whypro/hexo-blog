@@ -1,4 +1,306 @@
-<!DOCTYPE html><html lang="en"><head><meta name="generator" content="Hexo 3.8.0"><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="花了一天时间用python为服务写了个压力测试。很简单，多线程向服务器发请求。但写完之后发现如果中途想停下来，按Ctrl+C达不到效果，自然想到要用信号处理函数捕捉信号，使线程都停下来，问题解决的方法请往下看：123456789101112131415161718192021222324252627"><meta name="author" content="whypro"><meta property="og:title" content="Python 中用 Ctrl+C 终止多线程程序的问题解决"><meta property="og:site_name" content="Everlasting"><meta property="og:type" content="article"><meta name="twitter:card" content="summary"><title>Python 中用 Ctrl+C 终止多线程程序的问题解决 - Everlasting</title><link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/css/bootstrap.min.css" integrity="sha384-y3tfxAZXuh4HwSYylfB+J125MxIs6mR5FOHamPBG064zB+AFeWH94NdvaCBm8qnd" crossorigin="anonymous"><link href="//maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css"><!--[if lt IE 9]>
-        <script src="//oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
-        <script src="//oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
-    <![endif]--><link href="//cdnjs.cloudflare.com/ajax/libs/featherlight/1.3.5/featherlight.min.css" type="text/css" rel="stylesheet"><link rel="stylesheet" href="/hexo-blog/css/style.css"></head><body><div class="bg-gradient"></div><div class="bg-pattern"></div><div class="menu-bg"><div class="menu-container"><ul><li class="menu-item"><a href="/hexo-blog/">Home</a></li><li class="menu-item"><a href="/hexo-blog/archives">Archives</a></li><li class="menu-item"><a href="/hexo-blog/about.html">About</a></li><li class="menu-item"><a href="/hexo-blog/tags">Tags</a></li><li class="menu-item"><a href="/hexo-blog/categories">Categories</a></li><li class="menu-item"><a href="/hexo-blog/contact.html">Contact</a></li></ul></div></div><nav><a href="#menu"></a></nav><div class="container"><div class="row"><div class="col-sm-12"><header><div class="logo"><a href="/hexo-blog/"><i class="logo-icon fa fa-cube" aria-hidden="true"></i></a></div></header><section class="main"><div class="post"><div class="post-header"><h1 class="title"><a href="/hexo-blog/20130424/Python-中用-Ctrl-C-终止多线程程序的问题解决/">Python 中用 Ctrl+C 终止多线程程序的问题解决</a></h1><div class="post-info"><span class="date">2013-04-24</span></div></div><div class="content"><p>花了一天时间用python为服务写了个压力测试。很简单，多线程向服务器发请求。但写完之后发现如果中途想停下来，按Ctrl+C达不到效果，自然想到要用信号处理函数捕捉信号，使线程都停下来，问题解决的方法请往下看：</p><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#filename: peartest.py</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> threading, signal</span><br><span class="line"></span><br><span class="line">is_exit = <span class="keyword">False</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">doStress</span><span class="params">(i, cc)</span>:</span></span><br><span class="line">    <span class="keyword">global</span> is_exit</span><br><span class="line">    idx = i</span><br><span class="line">    <span class="keyword">while</span> <span class="keyword">not</span> is_exit:</span><br><span class="line">    <span class="keyword">if</span> (idx &lt; <span class="number">10000000</span>):</span><br><span class="line">        <span class="keyword">print</span> <span class="string">"thread[%d]: idx=%d"</span>%(i, idx)</span><br><span class="line">        idx = idx + cc</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">"thread[%d] complete."</span>%i</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">handler</span><span class="params">(signum, frame)</span>:</span></span><br><span class="line">    <span class="keyword">global</span> is_exit</span><br><span class="line">    is_exit = <span class="keyword">True</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">"receive a signal %d, is_exit = %d"</span>%(signum, is_exit)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">"__main__"</span>:</span><br><span class="line">    signal.signal(signal.SIGINT, handler)</span><br><span class="line">    signal.signal(signal.SIGTERM, handler)</span><br><span class="line">    cc = <span class="number">5</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(cc):</span><br><span class="line">        t = threading.Thread(target=doStress, args=(i,cc))</span><br><span class="line">        t.start()</span><br></pre></td></tr></table></figure><p>上面是一个模拟程序，并不真正向服务发送请求，而代之以在一千万以内，每个线程每隔并发数个（cc个）打印一个整数。很明显，当所有线程都完成自己的任务后，进程会正常退出。但如果我们中途想退出（试想一个压力测试程序，在中途已经发现了问题，需要停止测试），该肿么办？你当然可以用ps查找到进程号，然后kill -9杀掉，但这样太繁琐了，捕捉Ctrl+C是最自然的想法。上面示例程序中已经捕捉了这个信号，并修改全局变量is_exit，线程中会检测这个变量，及时退出。</p><p>但事实上这个程序并不work，当你按下Ctrl+C时，程序照常运行，并无任何响应。网上搜了一些资料，明白是python的子线程如果不是daemon的话，主线程是不能响应任何中断的。但设为daemon后主线程会随之退出，接着整个进程很快就退出了，所以还需要在主线程中检测各个子线程的状态，直到所有子线程退出后自己才退出，因此上例29行之后的代码可以修改为：</p><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">threads=[]</span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> range(cc):</span><br><span class="line">    t = threading.Thread(target=doStress, args=(i, cc))</span><br><span class="line">    t.setDaemon(<span class="keyword">True</span>)</span><br><span class="line">    threads.append(t)</span><br><span class="line">    t.start()</span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> range(cc):</span><br><span class="line">    threads[i].join()</span><br></pre></td></tr></table></figure><p>重新试一下，问题依然没有解决，进程还是没有响应Ctrl+C，这是因为join()函数同样会waiting在一个锁上，使主线程无法捕获信号。因此继续修改，调用线程的isAlive()函数判断线程是否完成：</p><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span> <span class="number">1</span>:</span><br><span class="line">    alive = <span class="keyword">False</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(cc):</span><br><span class="line">        alive = alive <span class="keyword">or</span> threads[i].isAlive()</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> alive:</span><br><span class="line">    <span class="keyword">break</span></span><br></pre></td></tr></table></figure><p>这样修改后，程序完全按照预想运行了：可以顺利的打印每个线程应该打印的所有数字，也可以中途用Ctrl+C终结整个进程。完整的代码如下：</p><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#filename: peartest.py</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> threading, signal</span><br><span class="line"></span><br><span class="line">is_exit = <span class="keyword">False</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">doStress</span><span class="params">(i, cc)</span>:</span></span><br><span class="line">    <span class="keyword">global</span> is_exit</span><br><span class="line">    idx = i</span><br><span class="line">    <span class="keyword">while</span> <span class="keyword">not</span> is_exit:</span><br><span class="line">        <span class="keyword">if</span> (idx &lt; <span class="number">10000000</span>):</span><br><span class="line">            <span class="keyword">print</span> <span class="string">"thread[%d]: idx=%d"</span>%(i, idx)</span><br><span class="line">            idx = idx + cc</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">    <span class="keyword">if</span> is_exit:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">"receive a signal to exit, thread[%d] stop."</span>%i</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">"thread[%d] complete."</span>%i</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">handler</span><span class="params">(signum, frame)</span>:</span></span><br><span class="line">    <span class="keyword">global</span> is_exit</span><br><span class="line">    is_exit = <span class="keyword">True</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">"receive a signal %d, is_exit = %d"</span>%(signum, is_exit)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">"__main__"</span>:</span><br><span class="line">    signal.signal(signal.SIGINT, handler)</span><br><span class="line">    signal.signal(signal.SIGTERM, handler)</span><br><span class="line">    cc = <span class="number">5</span></span><br><span class="line">    threads = []</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(cc):</span><br><span class="line">    t = threading.Thread(target=doStress, args=(i,cc))</span><br><span class="line">    t.setDaemon(<span class="keyword">True</span>)</span><br><span class="line">    threads.append(t)</span><br><span class="line">    t.start()</span><br><span class="line">    <span class="keyword">while</span> <span class="number">1</span>:</span><br><span class="line">        alive = <span class="keyword">False</span></span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(cc):</span><br><span class="line">            alive = alive <span class="keyword">or</span> threads[i].isAlive()</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> alive:</span><br><span class="line">            <span class="keyword">break</span></span><br></pre></td></tr></table></figure><p>其实，如果用python写一个服务，也需要这样，因为负责服务的那个线程是永远在那里接收请求的，不会退出，而如果你想用Ctrl+C杀死整个服务，跟上面的压力测试程序是一个道理。</p><p>总结一下，python多线程中要响应Ctrl+C的信号以杀死整个进程，需要：</p><ol><li>把所有子线程设为Daemon；</li><li>使用isAlive()函数判断所有子线程是否完成，而不是在主线程中用join()函数等待完成；</li><li>写一个响应Ctrl+C信号的函数，修改全局变量，使得各子线程能够检测到，并正常退出。</li></ol></div><div class="post-tags"><i class="fa fa-tags" aria-hidden="true"></i> <a href="/hexo-blog/tags/原创/">#原创</a> <a href="/hexo-blog/tags/Python/">#Python</a></div></div></section></div></div></div><div class="push"></div><footer class="footer-content"><div class="container"><div class="row"><div class="col-xs-12 col-sm-12 col-md-6 col-lg-6 footer-about"><h2>About</h2><p>This theme was developed by <a href="https://github.com/klugjo">Jonathan Klughertz</a>. The source code is available on Github. Create Websites. Make Magic.</p></div><div class="col-xs-6 col-sm-6 col-md-3 col-lg-3 recent-posts"><h2>Recent Posts</h2><ul><li><a class="footer-post" href="/hexo-blog/20190107/使用-Devstack-搭建-Openstack-集群/">使用 Devstack 搭建 Openstack</a></li><li><a class="footer-post" href="/hexo-blog/20180725/etcd-集群的备份和还原/">etcd 集群的备份和还原</a></li><li><a class="footer-post" href="/hexo-blog/20180301/Kubernetes-服务灰度升级最佳实践/">Kubernetes 服务灰度升级最佳实践</a></li><li><a class="footer-post" href="/hexo-blog/20180110/从头编写一款时间序列数据库/">从头编写一款时间序列数据库</a></li></ul></div></div><div class="row"><div class="col-xs-12 col-sm-12 col-md-12 col-lg-12"><ul class="list-inline footer-social-icons"><li class="list-inline-item"><a href="https://github.com/whypro"><span class="footer-icon-container"><i class="fa fa-github"></i></span></a></li><li class="list-inline-item"><a href="https://twitter.com/"><span class="footer-icon-container"><i class="fa fa-twitter"></i></span></a></li><li class="list-inline-item"><a href="https://www.facebook.com/"><span class="footer-icon-container"><i class="fa fa-facebook"></i></span></a></li><li class="list-inline-item"><a href="mailto:whypro@live.cn"><span class="footer-icon-container"><i class="fa fa-envelope-o"></i></span></a></li></ul></div></div><div class="row"><div class="col-xs-12 col-sm-12 col-md-12 col-lg-12"><div class="footer-copyright">@Everlasting. All right reserved | Design & Hexo <a href="http://whypro.github.io/hexo-blog/">whypro</a></div></div></div></div></footer><script src="//code.jquery.com/jquery-2.1.4.min.js"></script><script src="//cdnjs.cloudflare.com/ajax/libs/gsap/1.18.5/TweenMax.min.js"></script><script src="//cdnjs.cloudflare.com/ajax/libs/featherlight/1.3.5/featherlight.min.js" type="text/javascript" charset="utf-8"></script><script src="/hexo-blog/js/main.js"></script></body></html>
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta http-equiv="pragma" content="no-cache">
+  <meta http-equiv="cache-control" content="no-cache">
+  <meta http-equiv="expires" content="0">
+  
+  <title>Python 中用 Ctrl+C 终止多线程程序的问题解决 | Everlasting</title>
+  <meta name="author" content="whypro">
+  
+  <meta name="description" content="花了一天时间用python为服务写了个压力测试。很简单，多线程向服务器发请求。但写完之后发现如果中途想停下来，按Ctrl+C达不到效果，自然想到要用信号处理函数捕捉信号，使线程都停下来，问题解决的方法请往下看：">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Python 中用 Ctrl+C 终止多线程程序的问题解决">
+  <meta property="og:site_name" content="Everlasting">
+
+  
+    <meta property="og:image" content>
+  
+
+  
+    <link rel="alternative" href="/hexo-blog/atom.xml" title="Everlasting" type="application/atom+xml">
+  
+  
+    <link href="/hexo-blog/favicon.png" rel="icon">
+  
+  
+  <link rel="stylesheet" href="/hexo-blog/css/bootstrap.min.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/hexo-blog/css/font-awesome.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/hexo-blog/css/style.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/hexo-blog/css/responsive.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/hexo-blog/css/highlight.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/hexo-blog/css/google-fonts.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+
+  <script src="/hexo-blog/js/jquery-2.0.3.min.js"></script>
+
+  <!-- analytics -->
+  
+
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?17e1c6a0010d7be7e49ae6d2c2e7b817";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+
+</head>
+</html>
+ <body>  
+  <nav id="main-nav" class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container">
+      <button type="button" class="navbar-header navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+		<span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+	  <a class="navbar-brand" href="/hexo-blog/">Everlasting</a>
+      <div class="collapse navbar-collapse nav-menu">
+		<ul class="nav navbar-nav">
+		  
+		  <li>
+			<a href="/hexo-blog/archives" title="All the articles.">
+			  <i class="fa fa-archive"></i>Archives
+			</a>
+		  </li>
+		  
+		  <li>
+			<a href="/hexo-blog/categories" title="All the categories.">
+			  <i class="fa fa-folder"></i>Categories
+			</a>
+		  </li>
+		  
+		  <li>
+			<a href="/hexo-blog/tags" title="All the tags.">
+			  <i class="fa fa-tags"></i>Tags
+			</a>
+		  </li>
+		  
+		  <li>
+			<a href="/hexo-blog/about.html" title="About me.">
+			  <i class="fa fa-user"></i>About
+			</a>
+		  </li>
+		  
+		</ul>
+      </div>
+    </div> <!-- container -->
+</nav>
+<div class="clearfix"></div>
+
+  <div class="container">
+  	<div class="content">
+    	 
+
+
+	
+		<div class="page-header">
+			<h1> Python 中用 Ctrl+C 终止多线程程序的问题解决</h1>
+		</div>
+	
+
+
+
+<div class="row post">
+	<!-- cols -->
+	
+	<div id="top_meta"></div>
+	<div class="col-md-9">
+	
+
+	<!-- content -->
+	<div class="mypage">		
+	  		
+
+	  <p>花了一天时间用python为服务写了个压力测试。很简单，多线程向服务器发请求。但写完之后发现如果中途想停下来，按Ctrl+C达不到效果，自然想到要用信号处理函数捕捉信号，使线程都停下来，问题解决的方法请往下看：</p>
+<a id="more"></a>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#filename: peartest.py</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> threading, signal</span><br><span class="line"></span><br><span class="line">is_exit = <span class="keyword">False</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">doStress</span><span class="params">(i, cc)</span>:</span></span><br><span class="line">    <span class="keyword">global</span> is_exit</span><br><span class="line">    idx = i</span><br><span class="line">    <span class="keyword">while</span> <span class="keyword">not</span> is_exit:</span><br><span class="line">    <span class="keyword">if</span> (idx &lt; <span class="number">10000000</span>):</span><br><span class="line">        <span class="keyword">print</span> <span class="string">"thread[%d]: idx=%d"</span>%(i, idx)</span><br><span class="line">        idx = idx + cc</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">"thread[%d] complete."</span>%i</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">handler</span><span class="params">(signum, frame)</span>:</span></span><br><span class="line">    <span class="keyword">global</span> is_exit</span><br><span class="line">    is_exit = <span class="keyword">True</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">"receive a signal %d, is_exit = %d"</span>%(signum, is_exit)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">"__main__"</span>:</span><br><span class="line">    signal.signal(signal.SIGINT, handler)</span><br><span class="line">    signal.signal(signal.SIGTERM, handler)</span><br><span class="line">    cc = <span class="number">5</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(cc):</span><br><span class="line">        t = threading.Thread(target=doStress, args=(i,cc))</span><br><span class="line">        t.start()</span><br></pre></td></tr></table></figure>
+<p>上面是一个模拟程序，并不真正向服务发送请求，而代之以在一千万以内，每个线程每隔并发数个（cc个）打印一个整数。很明显，当所有线程都完成自己的任务后，进程会正常退出。但如果我们中途想退出（试想一个压力测试程序，在中途已经发现了问题，需要停止测试），该肿么办？你当然可以用ps查找到进程号，然后kill -9杀掉，但这样太繁琐了，捕捉Ctrl+C是最自然的想法。上面示例程序中已经捕捉了这个信号，并修改全局变量is_exit，线程中会检测这个变量，及时退出。</p>
+<p>但事实上这个程序并不work，当你按下Ctrl+C时，程序照常运行，并无任何响应。网上搜了一些资料，明白是python的子线程如果不是daemon的话，主线程是不能响应任何中断的。但设为daemon后主线程会随之退出，接着整个进程很快就退出了，所以还需要在主线程中检测各个子线程的状态，直到所有子线程退出后自己才退出，因此上例29行之后的代码可以修改为：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">threads=[]</span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> range(cc):</span><br><span class="line">    t = threading.Thread(target=doStress, args=(i, cc))</span><br><span class="line">    t.setDaemon(<span class="keyword">True</span>)</span><br><span class="line">    threads.append(t)</span><br><span class="line">    t.start()</span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> range(cc):</span><br><span class="line">    threads[i].join()</span><br></pre></td></tr></table></figure>
+<p>重新试一下，问题依然没有解决，进程还是没有响应Ctrl+C，这是因为join()函数同样会waiting在一个锁上，使主线程无法捕获信号。因此继续修改，调用线程的isAlive()函数判断线程是否完成：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span> <span class="number">1</span>:</span><br><span class="line">    alive = <span class="keyword">False</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(cc):</span><br><span class="line">        alive = alive <span class="keyword">or</span> threads[i].isAlive()</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> alive:</span><br><span class="line">    <span class="keyword">break</span></span><br></pre></td></tr></table></figure>
+<p>这样修改后，程序完全按照预想运行了：可以顺利的打印每个线程应该打印的所有数字，也可以中途用Ctrl+C终结整个进程。完整的代码如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#filename: peartest.py</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> threading, signal</span><br><span class="line"></span><br><span class="line">is_exit = <span class="keyword">False</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">doStress</span><span class="params">(i, cc)</span>:</span></span><br><span class="line">    <span class="keyword">global</span> is_exit</span><br><span class="line">    idx = i</span><br><span class="line">    <span class="keyword">while</span> <span class="keyword">not</span> is_exit:</span><br><span class="line">        <span class="keyword">if</span> (idx &lt; <span class="number">10000000</span>):</span><br><span class="line">            <span class="keyword">print</span> <span class="string">"thread[%d]: idx=%d"</span>%(i, idx)</span><br><span class="line">            idx = idx + cc</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">    <span class="keyword">if</span> is_exit:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">"receive a signal to exit, thread[%d] stop."</span>%i</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">"thread[%d] complete."</span>%i</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">handler</span><span class="params">(signum, frame)</span>:</span></span><br><span class="line">    <span class="keyword">global</span> is_exit</span><br><span class="line">    is_exit = <span class="keyword">True</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">"receive a signal %d, is_exit = %d"</span>%(signum, is_exit)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">"__main__"</span>:</span><br><span class="line">    signal.signal(signal.SIGINT, handler)</span><br><span class="line">    signal.signal(signal.SIGTERM, handler)</span><br><span class="line">    cc = <span class="number">5</span></span><br><span class="line">    threads = []</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(cc):</span><br><span class="line">    t = threading.Thread(target=doStress, args=(i,cc))</span><br><span class="line">    t.setDaemon(<span class="keyword">True</span>)</span><br><span class="line">    threads.append(t)</span><br><span class="line">    t.start()</span><br><span class="line">    <span class="keyword">while</span> <span class="number">1</span>:</span><br><span class="line">        alive = <span class="keyword">False</span></span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(cc):</span><br><span class="line">            alive = alive <span class="keyword">or</span> threads[i].isAlive()</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> alive:</span><br><span class="line">            <span class="keyword">break</span></span><br></pre></td></tr></table></figure>
+<p>其实，如果用python写一个服务，也需要这样，因为负责服务的那个线程是永远在那里接收请求的，不会退出，而如果你想用Ctrl+C杀死整个服务，跟上面的压力测试程序是一个道理。</p>
+<p>总结一下，python多线程中要响应Ctrl+C的信号以杀死整个进程，需要：</p>
+<ol>
+<li>把所有子线程设为Daemon；  </li>
+<li>使用isAlive()函数判断所有子线程是否完成，而不是在主线程中用join()函数等待完成；  </li>
+<li>写一个响应Ctrl+C信号的函数，修改全局变量，使得各子线程能够检测到，并正常退出。</li>
+</ol>
+	  
+	</div>
+
+	<div>
+  	<center>
+	<div class="pagination">
+
+    
+    
+    <a href="/hexo-blog/20130427/Python-引用，拷贝，对象回收，弱引用/" type="button" class="btn btn-default"><i class="fa fa-arrow-circle-o-left"></i> Prev</a>
+    
+
+    <a href="/hexo-blog/" type="button" class="btn btn-default"><i class="fa fa-home"></i>Home</a>
+    
+    <a href="/hexo-blog/20130413/Python执行系统命令的方法/" type="button" class="btn btn-default ">Next<i class="fa fa-arrow-circle-o-right"></i></a>
+    
+
+    
+</div>
+
+    </center>
+	</div>
+	
+	<!-- comment -->
+	
+<section id="comment">
+    <h2 class="title">Comments</h2>
+
+    
+    <div id="disqus_thread" class="ds-thread">
+        <script type="text/javascript">
+            /**
+             * RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+             * LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables
+             */
+                /*
+                 var disqus_config = function () {
+                 this.page.url = PAGE_URL; // Replace PAGE_URL with your page's canonical URL variable
+                 this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+                 };
+                 */
+            (function() { // DON'T EDIT BELOW THIS LINE
+                var d = document, s = d.createElement('script');
+
+                s.src = '//hexo-blog-everlasting.disqus.com/embed.js';
+
+                s.setAttribute('data-timestamp', +new Date());
+                (d.head || d.body).appendChild(s);
+            })();
+        </script>
+        <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by
+                Disqus.</a></noscript>
+    </div>
+    
+</section>
+
+
+	</div> <!-- col-md-9/col-md-12 -->
+		
+	
+	<div id="side_meta">
+		<div class="col-md-3" id="post_meta"> 
+
+	<!-- date -->
+	
+	<div class="meta-widget">
+	<i class="fa fa-clock-o"></i>
+	2013-04-24 
+	</div>
+	
+
+	<!-- categories -->
+    
+
+	<!-- tags -->
+	
+	<div class="meta-widget">
+	<a data-toggle="collapse" data-target="#tags"><i class="fa fa-tags"></i></a>		  
+    <ul id="tags" class="tag_box list-unstyled collapse in">	  
+	    
+  <li><a href="/hexo-blog/tags/原创/">原创<span>26</span></a></li> <li><a href="/hexo-blog/tags/Python/">Python<span>9</span></a></li>
+    </ul>
+	</div>
+		
+
+	<!-- toc -->
+	<div class="meta-widget">
+	
+	   <a data-toggle="collapse" data-target="#toc"><i class="fa fa-bars"></i></a>
+	   <div id="toc" class="toc collapse in">
+		   <span class="toc-title">Contents</span>
+			
+		</div>
+	
+	</div>
+	
+    <hr>
+	
+</div><!-- col-md-3 -->
+
+	</div>
+		
+
+</div><!-- row -->
+
+<script type="text/javascript">
+var disqus_shortname = 'hexo-blog-everlasting';
+(function(){
+  var dsq = document.createElement('script');
+  dsq.type = 'text/javascript';
+  dsq.async = true;
+  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+}());
+</script>
+
+
+
+	</div>
+  </div>
+  <div class="container-narrow">
+  <footer> <p>
+  &copy; 2019 whypro
+  
+      with help from <a href="http://hexo.io/" target="_blank">Hexo</a>,<a href="http://github.com/wzpan/hexo-theme-freemind/">Freemind</a>,<a href="http://getbootstrap.com/" target="_blank">Twitter Bootstrap</a> and <a href="http://getbootstrap.com/" target="_blank">BOOTSTRA.386</a>. 
+     <br> Theme by <a href="http://github.com/wzpan/hexo-theme-freemind/">Freemind.386</a>.    
+</p>
+ </footer>
+</div> <!-- container-narrow -->
+  
+
+
+  
+<a id="gotop" href="#">   
+  <span>⬆︎TOP</span>
+</a>
+
+<script src="/hexo-blog/js/jquery.imagesloaded.min.js"></script>
+<script src="/hexo-blog/js/gallery.js"></script>
+<script src="/hexo-blog/js/bootstrap.min.js"></script>
+<script src="/hexo-blog/js/main.js"></script>
+<script src="/hexo-blog/js/search.js"></script> 
+
+
+<link rel="stylesheet" href="/hexo-blog/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/hexo-blog/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+
+
+   <script type="text/javascript">      
+     var search_path = "search.xml";
+	 if (search_path.length == 0) {
+	 	search_path = "search.xml";
+	 }
+	 var path = "/hexo-blog/" + search_path;
+     searchFunc(path, 'local-search-input', 'local-search-result');
+   </script>
+
+</body>
+   </html>

@@ -1,0 +1,330 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta http-equiv="pragma" content="no-cache">
+  <meta http-equiv="cache-control" content="no-cache">
+  <meta http-equiv="expires" content="0">
+  
+  <title>从零开始实现一个 terraform plugin | Everlasting</title>
+  <meta name="author" content="whypro">
+  
+  <meta name="description" content="terraform 作为一个优秀的开源基础设施管理、构建工具，官方或第三方提供了很多 plugin 来对接各种云平台（IaaS）。然而在我们平时开发和测试过程中，需要使用内部的 IaaS 服务频繁创建和删除 VM，而目前人工操作的方式比较费时费力，且灭有现成的 plugin 可以使用。为了更方便地利用 terraform 工具来对内部 IaaS 资源进行管理和操作，我们决定自己开发一个 terraform plugin。">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="从零开始实现一个 terraform plugin">
+  <meta property="og:site_name" content="Everlasting">
+
+  
+    <meta property="og:image" content>
+  
+
+  
+    <link rel="alternative" href="/hexo-blog/atom.xml" title="Everlasting" type="application/atom+xml">
+  
+  
+    <link href="/hexo-blog/favicon.png" rel="icon">
+  
+  
+  <link rel="stylesheet" href="/hexo-blog/css/bootstrap.min.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/hexo-blog/css/font-awesome.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/hexo-blog/css/style.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/hexo-blog/css/responsive.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/hexo-blog/css/highlight.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/hexo-blog/css/google-fonts.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+
+  <script src="/hexo-blog/js/jquery-2.0.3.min.js"></script>
+
+  <!-- analytics -->
+  
+
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?17e1c6a0010d7be7e49ae6d2c2e7b817";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+
+</head>
+</html>
+ <body>  
+  <nav id="main-nav" class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container">
+      <button type="button" class="navbar-header navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+		<span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+	  <a class="navbar-brand" href="/hexo-blog/">Everlasting</a>
+      <div class="collapse navbar-collapse nav-menu">
+		<ul class="nav navbar-nav">
+		  
+		  <li>
+			<a href="/hexo-blog/archives" title="All the articles.">
+			  <i class="fa fa-archive"></i>Archives
+			</a>
+		  </li>
+		  
+		  <li>
+			<a href="/hexo-blog/categories" title="All the categories.">
+			  <i class="fa fa-folder"></i>Categories
+			</a>
+		  </li>
+		  
+		  <li>
+			<a href="/hexo-blog/tags" title="All the tags.">
+			  <i class="fa fa-tags"></i>Tags
+			</a>
+		  </li>
+		  
+		  <li>
+			<a href="/hexo-blog/about.html" title="About me.">
+			  <i class="fa fa-user"></i>About
+			</a>
+		  </li>
+		  
+		</ul>
+      </div>
+    </div> <!-- container -->
+</nav>
+<div class="clearfix"></div>
+
+  <div class="container">
+  	<div class="content">
+    	 
+
+
+	
+		<div class="page-header">
+			<h1> 从零开始实现一个 terraform plugin</h1>
+		</div>
+	
+
+
+
+<div class="row post">
+	<!-- cols -->
+	
+	<div id="top_meta"></div>
+	<div class="col-md-9">
+	
+
+	<!-- content -->
+	<div class="mypage">		
+	  		
+
+	  <p>terraform 作为一个优秀的开源基础设施管理、构建工具，官方或第三方提供了很多 plugin 来对接各种云平台（IaaS）。然而在我们平时开发和测试过程中，需要使用内部的 IaaS 服务频繁创建和删除 VM，而目前人工操作的方式比较费时费力，且灭有现成的 plugin 可以使用。为了更方便地利用 terraform 工具来对内部 IaaS 资源进行管理和操作，我们决定自己开发一个 terraform plugin。</p>
+<a id="more"></a>
+<h2 id="定义-Provider-Schema"><a href="#定义-Provider-Schema" class="headerlink" title="定义 Provider Schema"></a>定义 Provider Schema</h2><p>首先，我们定义入口文件 <code>main.go</code>：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">"github.com/hashicorp/terraform/plugin"</span></span><br><span class="line">    qvm <span class="string">"qiniu.com/kirk-deploy/pkg/qvm/terraform"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    plugin.Serve(&amp;plugin.ServeOpts&#123;</span><br><span class="line">        ProviderFunc: qvm.Provider,</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>其中 <code>qvm.Provider</code> 函数负责创建一个 provider resource。</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">Provider</span><span class="params">()</span> <span class="title">terraform</span>.<span class="title">ResourceProvider</span></span> &#123;</span><br><span class="line">    <span class="keyword">return</span> &amp;schema.Provider&#123;</span><br><span class="line">        Schema: <span class="keyword">map</span>[<span class="keyword">string</span>]*schema.Schema&#123;</span><br><span class="line">            <span class="string">"url"</span>: &#123;</span><br><span class="line">                Type:        schema.TypeString,</span><br><span class="line">                Optional:    <span class="literal">true</span>,</span><br><span class="line">                DefaultFunc: schema.EnvDefaultFunc(<span class="string">"QVM_URL"</span>, <span class="string">""</span>),</span><br><span class="line">                Description: descriptions[<span class="string">"url"</span>],</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="string">"ak"</span>: &#123;</span><br><span class="line">                Type:        schema.TypeString,</span><br><span class="line">                Optional:    <span class="literal">true</span>,</span><br><span class="line">                DefaultFunc: schema.EnvDefaultFunc(<span class="string">"QVM_AK"</span>, <span class="string">""</span>),</span><br><span class="line">                Description: descriptions[<span class="string">"ak"</span>],</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="string">"sk"</span>: &#123;</span><br><span class="line">                Type:        schema.TypeString,</span><br><span class="line">                Optional:    <span class="literal">true</span>,</span><br><span class="line">                DefaultFunc: schema.EnvDefaultFunc(<span class="string">"QVM_SK"</span>, <span class="string">""</span>),</span><br><span class="line">                Description: descriptions[<span class="string">"sk"</span>],</span><br><span class="line">            &#125;,</span><br><span class="line">        &#125;,</span><br><span class="line">        ResourcesMap: <span class="keyword">map</span>[<span class="keyword">string</span>]*schema.Resource&#123;</span><br><span class="line">            <span class="string">"compute_instance"</span>: resourceComputeInstance(),</span><br><span class="line">        &#125;,</span><br><span class="line">        ConfigureFunc: configureProvider,</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>Schema</code> 声明了 provider 配置文件的定义，对应的 <code>tf</code> 文件这样写：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">provider qvm &#123;</span><br><span class="line">    url = &quot;https://qvm.qiniuapi.com&quot;</span><br><span class="line">    ak = &quot;your app key&quot;</span><br><span class="line">    sk = &quot;your app secret&quot;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如果不在 <code>tf</code> 文件里指定 <code>ak</code> 和 <code>sk</code>，则 terraform 会根据 <code>DefaultFunc</code>，从环境变量 <code>QVM_AK</code> 和 <code>QVM_SK</code> 中获取。<code>Optional</code> 代表字段是可选的，即使用户没有填也不会报错。</p>
+<p><code>ResourcesMap</code> 声明了 provider 支持的资源和对应资源的工厂函数，例如这里我们只实现了计算资源，工厂函数的定义我们稍后再解释。</p>
+<h2 id="定义-Resource-Schema"><a href="#定义-Resource-Schema" class="headerlink" title="定义 Resource Schema"></a>定义 Resource Schema</h2><p>上面提到的 <code>resourceComputeInstance</code> 负责创建一个 compute instance resource，对于计算资源我们可以这样定义：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">resourceComputeInstance</span><span class="params">()</span> *<span class="title">schema</span>.<span class="title">Resource</span></span> &#123;</span><br><span class="line">    <span class="keyword">return</span> &amp;schema.Resource&#123;</span><br><span class="line">        Create: resourceComputeInstanceCreate,</span><br><span class="line">        Read:   resourceComputeInstanceRead,</span><br><span class="line">        Update: resourceComputeInstanceUpdate,</span><br><span class="line">        Delete: resourceComputeInstanceDelete,</span><br><span class="line">        Timeouts: &amp;schema.ResourceTimeout&#123;</span><br><span class="line">            Create: schema.DefaultTimeout(<span class="number">30</span> * time.Minute),</span><br><span class="line">            Update: schema.DefaultTimeout(<span class="number">30</span> * time.Minute),</span><br><span class="line">            Delete: schema.DefaultTimeout(<span class="number">30</span> * time.Minute),</span><br><span class="line">        &#125;,</span><br><span class="line">        Schema: <span class="keyword">map</span>[<span class="keyword">string</span>]*schema.Schema&#123;</span><br><span class="line">            <span class="string">"image_id"</span>: &#123;</span><br><span class="line">                Type:     schema.TypeString,</span><br><span class="line">                Optional: <span class="literal">true</span>,</span><br><span class="line">                ForceNew: <span class="literal">true</span>,</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="string">"instance_name"</span>: &#123;</span><br><span class="line">                Type:     schema.TypeString,</span><br><span class="line">                Optional: <span class="literal">true</span>,</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="string">"system_disk"</span>: &#123;</span><br><span class="line">                Type:     schema.TypeList,</span><br><span class="line">                Required: <span class="literal">true</span>,</span><br><span class="line">                MaxItems: <span class="number">1</span>,</span><br><span class="line">                Elem: &amp;schema.Resource&#123;</span><br><span class="line">                    Schema: <span class="keyword">map</span>[<span class="keyword">string</span>]*schema.Schema&#123;</span><br><span class="line">                        <span class="string">"category"</span>: &#123;</span><br><span class="line">                            Type:     schema.TypeString,</span><br><span class="line">                            Optional: <span class="literal">true</span>,</span><br><span class="line">                            Default:  enums.DiskCategoryCloudEfficiency,</span><br><span class="line">                            ForceNew: <span class="literal">true</span>,</span><br><span class="line">                        &#125;,</span><br><span class="line">                        <span class="string">"size"</span>: &#123;</span><br><span class="line">                            Type:     schema.TypeInt,</span><br><span class="line">                            Optional: <span class="literal">true</span>,</span><br><span class="line">                            Default:  <span class="number">40</span>,</span><br><span class="line">                        &#125;,</span><br><span class="line">                    &#125;,</span><br><span class="line">                &#125;,</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="string">"data_disk"</span>: &#123;</span><br><span class="line">                Type:     schema.TypeList,</span><br><span class="line">                Optional: <span class="literal">true</span>,</span><br><span class="line">                MinItems: <span class="number">1</span>,</span><br><span class="line">                MaxItems: <span class="number">15</span>,</span><br><span class="line">                Elem: &amp;schema.Resource&#123;</span><br><span class="line">                    Schema: <span class="keyword">map</span>[<span class="keyword">string</span>]*schema.Schema&#123;</span><br><span class="line">                        <span class="string">"category"</span>: &#123;</span><br><span class="line">                            Type:     schema.TypeString,</span><br><span class="line">                            Optional: <span class="literal">true</span>,</span><br><span class="line">                            Default:  enums.DiskCategoryCloudEfficiency,</span><br><span class="line">                            ForceNew: <span class="literal">true</span>,</span><br><span class="line">                        &#125;,</span><br><span class="line">                        <span class="string">"size"</span>: &#123;</span><br><span class="line">                            Type:     schema.TypeInt,</span><br><span class="line">                            Optional: <span class="literal">true</span>,</span><br><span class="line">                            Default:  <span class="number">40</span>,</span><br><span class="line">                        &#125;,</span><br><span class="line">                    &#125;,</span><br><span class="line">                &#125;,</span><br><span class="line">            &#125;,</span><br><span class="line">        &#125;,</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>Create</code> <code>Read</code> <code>Update</code> <code>Delete</code> 分别是管理资源的回调函数，terraform 框架会在合适的时间调用这几个函数，<code>Timeouts</code> 定义了每个操作的超时时间，<code>Schema</code> 与上面一样，是定义 <code>tf</code> 文件的具体结构。</p>
+<p><code>ForceNew</code> 代表一旦这个字段改变，则 terraform 会删除并重新创建该资源。<code>TypeList</code> 定义了一个列表，如果 <code>MaxItems: 1</code> 时，列表退化为单个资源。</p>
+<p>为了简化起见，<code>Schema</code> 我们省略了很多字段，对应的 <code>tf</code> 文件可以这样写：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">resource &quot;compute_instance&quot; &quot;test&quot; &#123;</span><br><span class="line">    count = &quot;$&#123;var.count&#125;&quot;</span><br><span class="line">    provider = &quot;qvm&quot;</span><br><span class="line">    image_id = &quot;$&#123;var.image&#125;&quot;</span><br><span class="line">    instance_name = &quot;$&#123;var.instance_name&#125;-$&#123;count.index&#125;&quot;</span><br><span class="line">    system_disk &#123;</span><br><span class="line">        category = &quot;efficiency&quot;</span><br><span class="line">        size = 40</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>其中 <code>${var.}</code> 代表在 varaibles.tf 文件里定义的变量，具体可以用法可以参考 terraform 官方文档，这里不过多地介绍。</p>
+<h2 id="定义-Resource-Operation-Function"><a href="#定义-Resource-Operation-Function" class="headerlink" title="定义 Resource Operation Function"></a>定义 Resource Operation Function</h2><h3 id="Create"><a href="#Create" class="headerlink" title="Create"></a>Create</h3><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">resourceComputeInstanceCreate</span><span class="params">(d *schema.ResourceData, meta <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">    config := meta.(*Config)</span><br><span class="line">    client, err := config.computeClient()</span><br><span class="line">    <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> err</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    systemDisk := d.Get(<span class="string">"system_disk"</span>).([]<span class="keyword">interface</span>&#123;&#125;)[<span class="number">0</span>].(<span class="keyword">map</span>[<span class="keyword">string</span>]<span class="keyword">interface</span>&#123;&#125;)</span><br><span class="line"></span><br><span class="line">    systemDiskParameters := params.CreateInstanceSystemDiskParameters&#123;</span><br><span class="line">        Category: enums.DiskCategory(systemDisk[<span class="string">"category"</span>].(<span class="keyword">string</span>)),</span><br><span class="line">        Size:     systemDisk[<span class="string">"size"</span>].(<span class="keyword">int</span>),</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    parameters := &amp;params.CreateInstanceParameters&#123;</span><br><span class="line">        ImageId:            d.Get(<span class="string">"image_id"</span>).(<span class="keyword">string</span>),</span><br><span class="line">        SystemDisk:         systemDiskParameters,</span><br><span class="line">        InstanceName:       enums.InstanceName(d.Get(<span class="string">"instance_name"</span>).(<span class="keyword">string</span>)),</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    log.Printf(<span class="string">"[DEBUG] CreateInstanceParameters: %#v"</span>, parameters)</span><br><span class="line">    rsp, err := client.CreateInstance(parameters)</span><br><span class="line">    <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">        log.Printf(<span class="string">"[ERROR] create instance error, %v"</span>, err)</span><br><span class="line">        <span class="keyword">return</span> err</span><br><span class="line">    &#125;</span><br><span class="line">    log.Printf(<span class="string">"[INFO] Instance ID: %s"</span>, rsp.Data.InstanceId)</span><br><span class="line">    d.SetId(rsp.Data.InstanceId)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> resourceComputeInstanceRead(d, meta)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>Create</code> 的实现最重要的一个操作是 <code>SetId</code>，如果服务端资源创建成功，会返回一个 InstanceId，<code>SetId</code> 会将这个 InstanceId 保存，作为以后判断资源是否更新的 key。</p>
+<p>return 前又进行了一次 <code>Read</code> 操作，是为了防止有些状态字段没有通过 CreateResponse 返回，再尝试通过一次 Read 来获取这些状态信息。</p>
+<h3 id="Delete"><a href="#Delete" class="headerlink" title="Delete"></a>Delete</h3><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">resourceComputeInstanceDelete</span><span class="params">(d *schema.ResourceData, meta <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">    config := meta.(*Config)</span><br><span class="line">    client, err := config.computeClient()</span><br><span class="line">    <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> err</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    p := &amp;params.DeleteInstanceParameters&#123;</span><br><span class="line">        InstanceId: d.Id(),</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    _, err = client.DeleteInstance(p)</span><br><span class="line">    <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> err</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="Update"><a href="#Update" class="headerlink" title="Update"></a>Update</h3><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">resourceComputeInstanceUpdate</span><span class="params">(d *schema.ResourceData, meta <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">    <span class="keyword">return</span> resourceComputeInstanceRead(d, meta)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>我们暂时不实现 <code>Update</code> 操作，因此这里只是简单地返回 Read。</p>
+<h3 id="Read"><a href="#Read" class="headerlink" title="Read"></a>Read</h3><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">resourceComputeInstanceRead</span><span class="params">(d *schema.ResourceData, meta <span class="keyword">interface</span>&#123;&#125;)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">    config := meta.(*Config)</span><br><span class="line">    client, err := config.computeClient()</span><br><span class="line">    <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> err</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    p := &amp;params.DescribeInstanceParameters&#123;</span><br><span class="line">        InstanceId: d.Id(),</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    rsp, err := client.GetInstance(p)</span><br><span class="line">    <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> err</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    instance := &amp;rsp.Data</span><br><span class="line">    d.Set(<span class="string">"image_id"</span>, instance.ImageId)</span><br><span class="line">    d.Set(<span class="string">"instance_name"</span>, instance.InstanceName)</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>Read</code> 通过 InstanceId 对资源状态进行查询，保存至 resource data。</p>
+<h2 id="编译和构建"><a href="#编译和构建" class="headerlink" title="编译和构建"></a>编译和构建</h2><p>上面基本代码框架实现后，我们就可以对 plugin 进行编译和构建了：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">go build -o terraform-provider-qvm</span><br></pre></td></tr></table></figure>
+<p>二进制文件的命名必须遵守以下命名规则：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">terraform-provider-&lt;NAME&gt;</span><br></pre></td></tr></table></figure>
+<p>构建后，我们手动将二进制拷贝至 terraform 默认的插件目录：<code>${HOME}/.terraform/plguins</code>。</p>
+<h2 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h2><p>进入工作目录，即 <code>tf</code> 文件保存的目录，假设这个目录的结构为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">terraform/qvm</span><br><span class="line">├── provider.tf</span><br><span class="line">├── resources.tf</span><br><span class="line">└── variables.tf</span><br></pre></td></tr></table></figure>
+<h3 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">terraform init</span><br></pre></td></tr></table></figure>
+<h3 id="修改配置"><a href="#修改配置" class="headerlink" title="修改配置"></a>修改配置</h3><p>可以通过 <code>export</code> 或直接修改 <code>.tf</code> 文件，对配置进行修改：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">export QVM_AK=</span><br><span class="line">export QVM_SK=</span><br></pre></td></tr></table></figure>
+<h3 id="查看更改"><a href="#查看更改" class="headerlink" title="查看更改"></a>查看更改</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">terraform plan</span><br></pre></td></tr></table></figure>
+<p>执行后 terraform 会对配置进行合法性校验。</p>
+<h3 id="应用更改"><a href="#应用更改" class="headerlink" title="应用更改"></a>应用更改</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">terraform apply</span><br></pre></td></tr></table></figure>
+<h3 id="销毁"><a href="#销毁" class="headerlink" title="销毁"></a>销毁</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">terraform destroy</span><br></pre></td></tr></table></figure>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><p><a href="https://www.terraform.io/docs/extend/writing-custom-providers.html" target="_blank" rel="noopener">https://www.terraform.io/docs/extend/writing-custom-providers.html</a></p>
+<p><a href="https://www.terraform.io/docs/extend/how-terraform-works.html" target="_blank" rel="noopener">https://www.terraform.io/docs/extend/how-terraform-works.html</a></p>
+	  
+	</div>
+
+	<div>
+  	<center>
+	<div class="pagination">
+
+    
+    
+    <a type="button" class="btn btn-default disabled"><i class="fa fa-arrow-circle-o-left"></i>Prev</a>
+    
+
+    <a href="/hexo-blog/" type="button" class="btn btn-default"><i class="fa fa-home"></i>Home</a>
+    
+    <a href="/hexo-blog/20190107/使用-Devstack-搭建-Openstack-集群/" type="button" class="btn btn-default ">Next<i class="fa fa-arrow-circle-o-right"></i></a>
+    
+
+    
+</div>
+
+    </center>
+	</div>
+	
+	<!-- comment -->
+	
+<section id="comment">
+    <h2 class="title">Comments</h2>
+
+    
+    <div id="disqus_thread" class="ds-thread">
+        <script type="text/javascript">
+            /**
+             * RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+             * LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables
+             */
+                /*
+                 var disqus_config = function () {
+                 this.page.url = PAGE_URL; // Replace PAGE_URL with your page's canonical URL variable
+                 this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+                 };
+                 */
+            (function() { // DON'T EDIT BELOW THIS LINE
+                var d = document, s = d.createElement('script');
+
+                s.src = '//hexo-blog-everlasting.disqus.com/embed.js';
+
+                s.setAttribute('data-timestamp', +new Date());
+                (d.head || d.body).appendChild(s);
+            })();
+        </script>
+        <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by
+                Disqus.</a></noscript>
+    </div>
+    
+</section>
+
+
+	</div> <!-- col-md-9/col-md-12 -->
+		
+	
+	<div id="side_meta">
+		<div class="col-md-3" id="post_meta"> 
+
+	<!-- date -->
+	
+	<div class="meta-widget">
+	<i class="fa fa-clock-o"></i>
+	2019-05-22 
+	</div>
+	
+
+	<!-- categories -->
+    
+
+	<!-- tags -->
+	
+	<div class="meta-widget">
+	<a data-toggle="collapse" data-target="#tags"><i class="fa fa-tags"></i></a>		  
+    <ul id="tags" class="tag_box list-unstyled collapse in">	  
+	    
+  <li><a href="/hexo-blog/tags/原创/">原创<span>26</span></a></li> <li><a href="/hexo-blog/tags/terraform/">terraform<span>1</span></a></li> <li><a href="/hexo-blog/tags/Golang/">Golang<span>1</span></a></li>
+    </ul>
+	</div>
+		
+
+	<!-- toc -->
+	<div class="meta-widget">
+	
+	   <a data-toggle="collapse" data-target="#toc"><i class="fa fa-bars"></i></a>
+	   <div id="toc" class="toc collapse in">
+		   <span class="toc-title">Contents</span>
+			<ol class="toc-article"><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#定义-Provider-Schema"><span class="toc-article-text">定义 Provider Schema</span></a></li><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#定义-Resource-Schema"><span class="toc-article-text">定义 Resource Schema</span></a></li><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#定义-Resource-Operation-Function"><span class="toc-article-text">定义 Resource Operation Function</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#Create"><span class="toc-article-text">Create</span></a></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#Delete"><span class="toc-article-text">Delete</span></a></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#Update"><span class="toc-article-text">Update</span></a></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#Read"><span class="toc-article-text">Read</span></a></li></ol></li><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#编译和构建"><span class="toc-article-text">编译和构建</span></a></li><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#使用"><span class="toc-article-text">使用</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#初始化"><span class="toc-article-text">初始化</span></a></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#修改配置"><span class="toc-article-text">修改配置</span></a></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#查看更改"><span class="toc-article-text">查看更改</span></a></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#应用更改"><span class="toc-article-text">应用更改</span></a></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#销毁"><span class="toc-article-text">销毁</span></a></li></ol></li><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#参考"><span class="toc-article-text">参考</span></a></li></ol>
+		</div>
+	
+	</div>
+	
+    <hr>
+	
+</div><!-- col-md-3 -->
+
+	</div>
+		
+
+</div><!-- row -->
+
+<script type="text/javascript">
+var disqus_shortname = 'hexo-blog-everlasting';
+(function(){
+  var dsq = document.createElement('script');
+  dsq.type = 'text/javascript';
+  dsq.async = true;
+  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+}());
+</script>
+
+
+
+	</div>
+  </div>
+  <div class="container-narrow">
+  <footer> <p>
+  &copy; 2019 whypro
+  
+      with help from <a href="http://hexo.io/" target="_blank">Hexo</a>,<a href="http://github.com/wzpan/hexo-theme-freemind/">Freemind</a>,<a href="http://getbootstrap.com/" target="_blank">Twitter Bootstrap</a> and <a href="http://getbootstrap.com/" target="_blank">BOOTSTRA.386</a>. 
+     <br> Theme by <a href="http://github.com/wzpan/hexo-theme-freemind/">Freemind.386</a>.    
+</p>
+ </footer>
+</div> <!-- container-narrow -->
+  
+
+
+  
+<a id="gotop" href="#">   
+  <span>⬆︎TOP</span>
+</a>
+
+<script src="/hexo-blog/js/jquery.imagesloaded.min.js"></script>
+<script src="/hexo-blog/js/gallery.js"></script>
+<script src="/hexo-blog/js/bootstrap.min.js"></script>
+<script src="/hexo-blog/js/main.js"></script>
+<script src="/hexo-blog/js/search.js"></script> 
+
+
+<link rel="stylesheet" href="/hexo-blog/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/hexo-blog/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+
+
+   <script type="text/javascript">      
+     var search_path = "search.xml";
+	 if (search_path.length == 0) {
+	 	search_path = "search.xml";
+	 }
+	 var path = "/hexo-blog/" + search_path;
+     searchFunc(path, 'local-search-input', 'local-search-result');
+   </script>
+
+</body>
+   </html>
