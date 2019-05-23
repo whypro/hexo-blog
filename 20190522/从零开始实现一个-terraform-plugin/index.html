@@ -9,7 +9,7 @@
   <title>从零开始实现一个 terraform plugin | Everlasting</title>
   <meta name="author" content="whypro">
   
-  <meta name="description" content="terraform 作为一个优秀的开源基础设施管理、构建工具，官方或第三方提供了很多 plugin 来对接各种云平台（IaaS）。然而在我们平时开发和测试过程中，需要使用内部的 IaaS 服务频繁创建和删除 VM，而目前人工操作的方式比较费时费力，且灭有现成的 plugin 可以使用。为了更方便地利用 terraform 工具来对内部 IaaS 资源进行管理和操作，我们决定自己开发一个 terraform plugin。">
+  <meta name="description" content="terraform 作为一个优秀的开源基础设施管理、构建工具，官方或第三方提供了很多 plugin 来对接各种云平台（IaaS）。然而在我们平时开发和测试过程中，需要使用内部的 IaaS 服务频繁创建和删除 VM，而目前人工操作的方式比较费时费力，且没有现成的 plugin 可以使用。为了更方便地利用 terraform 工具来对内部 IaaS 资源进行管理和操作，我们决定自己开发一个 terraform plugin。">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -122,7 +122,7 @@ var _hmt = _hmt || [];
 	<div class="mypage">		
 	  		
 
-	  <p>terraform 作为一个优秀的开源基础设施管理、构建工具，官方或第三方提供了很多 plugin 来对接各种云平台（IaaS）。然而在我们平时开发和测试过程中，需要使用内部的 IaaS 服务频繁创建和删除 VM，而目前人工操作的方式比较费时费力，且灭有现成的 plugin 可以使用。为了更方便地利用 terraform 工具来对内部 IaaS 资源进行管理和操作，我们决定自己开发一个 terraform plugin。</p>
+	  <p>terraform 作为一个优秀的开源基础设施管理、构建工具，官方或第三方提供了很多 plugin 来对接各种云平台（IaaS）。然而在我们平时开发和测试过程中，需要使用内部的 IaaS 服务频繁创建和删除 VM，而目前人工操作的方式比较费时费力，且没有现成的 plugin 可以使用。为了更方便地利用 terraform 工具来对内部 IaaS 资源进行管理和操作，我们决定自己开发一个 terraform plugin。</p>
 <a id="more"></a>
 <h2 id="定义-Provider-Schema"><a href="#定义-Provider-Schema" class="headerlink" title="定义 Provider Schema"></a>定义 Provider Schema</h2><p>首先，我们定义入口文件 <code>main.go</code>：</p>
 <figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">"github.com/hashicorp/terraform/plugin"</span></span><br><span class="line">    qvm <span class="string">"qiniu.com/kirk-deploy/pkg/qvm/terraform"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    plugin.Serve(&amp;plugin.ServeOpts&#123;</span><br><span class="line">        ProviderFunc: qvm.Provider,</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
@@ -243,7 +243,7 @@ var _hmt = _hmt || [];
 	<a data-toggle="collapse" data-target="#tags"><i class="fa fa-tags"></i></a>		  
     <ul id="tags" class="tag_box list-unstyled collapse in">	  
 	    
-  <li><a href="/hexo-blog/tags/原创/">原创<span>26</span></a></li> <li><a href="/hexo-blog/tags/terraform/">terraform<span>1</span></a></li> <li><a href="/hexo-blog/tags/Golang/">Golang<span>1</span></a></li>
+  <li><a href="/hexo-blog/tags/原创/">原创<span>27</span></a></li> <li><a href="/hexo-blog/tags/terraform/">terraform<span>1</span></a></li> <li><a href="/hexo-blog/tags/Golang/">Golang<span>1</span></a></li>
     </ul>
 	</div>
 		

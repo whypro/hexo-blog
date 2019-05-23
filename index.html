@@ -142,7 +142,7 @@ var _hmt = _hmt || [];
   <div class="row">
 	
 	
-		<p>terraform 作为一个优秀的开源基础设施管理、构建工具，官方或第三方提供了很多 plugin 来对接各种云平台（IaaS）。然而在我们平时开发和测试过程中，需要使用内部的 IaaS 服务频繁创建和删除 VM，而目前人工操作的方式比较费时费力，且灭有现成的 plugin 可以使用。为了更方便地利用 terraform 工具来对内部 IaaS 资源进行管理和操作，我们决定自己开发一个 terraform plugin。</p>
+		<p>terraform 作为一个优秀的开源基础设施管理、构建工具，官方或第三方提供了很多 plugin 来对接各种云平台（IaaS）。然而在我们平时开发和测试过程中，需要使用内部的 IaaS 服务频繁创建和删除 VM，而目前人工操作的方式比较费时费力，且没有现成的 plugin 可以使用。为了更方便地利用 terraform 工具来对内部 IaaS 资源进行管理和操作，我们决定自己开发一个 terraform plugin。</p>
 	
 	</div>
   <a type="button" href="/hexo-blog/20190522/从零开始实现一个-terraform-plugin/#more" class="btn btn-default more">Read More</a>
@@ -234,6 +234,36 @@ var _hmt = _hmt || [];
 	
 	</div>
   <a type="button" href="/hexo-blog/20180725/etcd-集群的备份和还原/#more" class="btn btn-default more">Read More</a>
+</div>
+
+		
+			
+	
+	<!-- display as entry -->
+<div class="row">
+	<div class="col-md-8">
+		<h3 class="title">
+			<a href="/hexo-blog/20180404/Kubernetes-容器生命周期管理/">Kubernetes 容器生命周期管理</a>
+		</h3>
+		</div>
+	<div class="col-md-4">
+		<div class="date">post @ 2018-04-04  </div>
+		</div>
+	</div>
+	
+
+
+			<div class="entry">
+  <div class="row">
+	
+	
+		<h2 id="健康检查和就绪检查"><a href="#健康检查和就绪检查" class="headerlink" title="健康检查和就绪检查"></a>健康检查和就绪检查</h2><h3 id="健康检查（Liveness-Probe）"><a href="#健康检查（Liveness-Probe）" class="headerlink" title="健康检查（Liveness Probe）"></a>健康检查（Liveness Probe）</h3><p>如果设置了 <code>livenessProbe</code>，k8s (kubelet) 会每隔 n 秒执行预先配置的行为来检查容器是否健康</p>
+<p>当健康检查失败时，k8s 会认为容器已经挂掉，会根据 <code>restartPolicy</code> 来对容器进行重启或其他操作。</p>
+<p>每次检查有 3 种结果，<code>Success</code>、<code>Failure</code>、<code>Unknown</code></p>
+<p>如果不配置，默认的检查状态为 <code>Success</code></p>
+	
+	</div>
+  <a type="button" href="/hexo-blog/20180404/Kubernetes-容器生命周期管理/#more" class="btn btn-default more">Read More</a>
 </div>
 
 		
@@ -391,34 +421,6 @@ var _hmt = _hmt || [];
 </div>
 
 		
-			
-	
-	<!-- display as entry -->
-<div class="row">
-	<div class="col-md-8">
-		<h3 class="title">
-			<a href="/hexo-blog/20150721/连连看游戏消除算法/">连连看游戏消除算法</a>
-		</h3>
-		</div>
-	<div class="col-md-4">
-		<div class="date">post @ 2015-07-21  </div>
-		</div>
-	</div>
-	
-
-
-			<div class="entry">
-  <div class="row">
-	
-	
-		<p>今天在收到一道的面试题，觉得比较有意思，决定记录下来，整个题目与解答过程大概如下。</p>
-<p>连连看是一种很受大家欢迎的小游戏。下面四张图给出了最基本的消除规则：</p>
-	
-	</div>
-  <a type="button" href="/hexo-blog/20150721/连连看游戏消除算法/#more" class="btn btn-default more">Read More</a>
-</div>
-
-		
 
 		</div>
 
@@ -468,45 +470,45 @@ var _hmt = _hmt || [];
 		<h4>Tag Cloud</h4>
 		<ul class="tag_box inline list-unstyled">		
 		
-			<li><a href="/hexo-blog/tags/维修/">维修<span>1</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/etcd/">etcd<span>1</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/Golang/">Golang<span>1</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/主板/">主板<span>1</span></a></li>
-		
 			<li><a href="/hexo-blog/tags/转载/">转载<span>2</span></a></li>
 		
-			<li><a href="/hexo-blog/tags/原创/">原创<span>26</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/连连看/">连连看<span>1</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/爬虫/">爬虫<span>4</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/黑客技术/">黑客技术<span>1</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/操作系统/">操作系统<span>1</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/硬件/">硬件<span>1</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/Linux/">Linux<span>1</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/蚁群算法/">蚁群算法<span>1</span></a></li>
+			<li><a href="/hexo-blog/tags/Openstack/">Openstack<span>1</span></a></li>
 		
 			<li><a href="/hexo-blog/tags/图像处理/">图像处理<span>1</span></a></li>
 		
-			<li><a href="/hexo-blog/tags/游戏/">游戏<span>1</span></a></li>
+			<li><a href="/hexo-blog/tags/云计算/">云计算<span>5</span></a></li>
 		
-			<li><a href="/hexo-blog/tags/运维/">运维<span>1</span></a></li>
+			<li><a href="/hexo-blog/tags/硬件/">硬件<span>1</span></a></li>
 		
 			<li><a href="/hexo-blog/tags/terraform/">terraform<span>1</span></a></li>
 		
+			<li><a href="/hexo-blog/tags/维修/">维修<span>1</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/Linux/">Linux<span>1</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/黑客技术/">黑客技术<span>1</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/Prometheus/">Prometheus<span>1</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/游戏/">游戏<span>1</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/Python/">Python<span>9</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/算法/">算法<span>3</span></a></li>
+		
 			<li><a href="/hexo-blog/tags/网络/">网络<span>1</span></a></li>
 		
-			<li><a href="/hexo-blog/tags/K8S/">K8S<span>5</span></a></li>
+			<li><a href="/hexo-blog/tags/运维/">运维<span>1</span></a></li>
 		
-			<li><a href="/hexo-blog/tags/Fedora/">Fedora<span>1</span></a></li>
+			<li><a href="/hexo-blog/tags/Kubernetes/">Kubernetes<span>6</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/主板/">主板<span>1</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/原创/">原创<span>27</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/爬虫/">爬虫<span>4</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/多线程/">多线程<span>1</span></a></li>
 		
 		
 		   <li><a href="/hexo-blog/tags">...<span>27</span></a></li>
@@ -538,7 +540,7 @@ var _hmt = _hmt || [];
       </li>
     
       <li>
-        <a href="/hexo-blog/20180301/Kubernetes-服务灰度升级最佳实践/"><i class="fa fa-file-o"></i>Kubernetes 服务灰度升级最佳实践</a>
+        <a href="/hexo-blog/20180404/Kubernetes-容器生命周期管理/"><i class="fa fa-file-o"></i>Kubernetes 容器生命周期管理</a>
       </li>
     
   </ul>
