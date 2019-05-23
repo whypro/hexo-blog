@@ -147,14 +147,6 @@ var _hmt = _hmt || [];
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[-3, -1, 0, 0, 1, 1, 2, 5]</span><br></pre></td></tr></table></figure>
 <p>返回</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">5</span><br></pre></td></tr></table></figure>
-<h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><h3 id="第一种方法"><a href="#第一种方法" class="headerlink" title="第一种方法"></a>第一种方法</h3><p>首先一个循环将数组所有的负数转换为正数，然后对整个数组进行排序。</p>
-<p>但循环一遍的时间复杂度为 <code>O(n)</code>，排序如果用堆排序，平均时间复杂度为 <code>O(nlogn)</code>，空间复杂度为 <code>O(1)</code>。因此整体的时间复杂度为 <code>O(nlogn)</code>，空间复杂度为 <code>O(1)</code>。而既然题目已经保证了有序数组，那有没有更快的方法呢？</p>
-<h3 id="第二种方法"><a href="#第二种方法" class="headerlink" title="第二种方法"></a>第二种方法</h3><p>我们可以用两个索引，索引 i 和 索引 j 分别从数组两端向中间移动，如果当前元素和下一个元素相等则跳过，如果右边的绝对值大于左边的绝对值，则索引 j 左移，如果左边的绝对值大于右边的绝对值，则索引 i 右移，如果两边绝对值相等，则索引同时左移和右移，每次移动计数加一。直到索引相遇时结束，如果相遇后索引刚好相等，则计数最后再加一。</p>
-<p>这样时间复杂度就为 <code>O(n)</code>，空间复杂度为 <code>O(1)</code>。</p>
-<h2 id="实现"><a href="#实现" class="headerlink" title="实现"></a>实现</h2><p>使用 Golang 实现的源码如下：</p>
-<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">getDistinctAbsCount</span><span class="params">(nums []<span class="keyword">int</span>)</span> <span class="title">int</span></span> &#123;</span><br><span class="line">    i := <span class="number">0</span></span><br><span class="line">    j := <span class="built_in">len</span>(nums) - <span class="number">1</span></span><br><span class="line">    count := <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> i &lt; j &#123;</span><br><span class="line">        <span class="keyword">if</span> i &lt; <span class="built_in">len</span>(nums)<span class="number">-1</span> &amp;&amp; nums[i] == nums[i+<span class="number">1</span>] &#123;</span><br><span class="line">            <span class="comment">// skip duplicated</span></span><br><span class="line">            i += <span class="number">1</span></span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> j &gt; <span class="number">0</span> &amp;&amp; nums[j] == nums[j<span class="number">-1</span>] &#123;</span><br><span class="line">            <span class="comment">// skip duplicated</span></span><br><span class="line">            j -= <span class="number">1</span></span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        sum := nums[i] + nums[j]</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> sum &gt; <span class="number">0</span> &#123;</span><br><span class="line">            <span class="comment">// abs(nums[i]) &lt; abs(nums[j])</span></span><br><span class="line">            j -= <span class="number">1</span></span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> sum &lt; <span class="number">0</span> &#123;</span><br><span class="line">            <span class="comment">// abs(nums[i]) &gt; abs(nums[j])</span></span><br><span class="line">            i += <span class="number">1</span></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// abs(nums[i]) == abs(nums[j])</span></span><br><span class="line">            i += <span class="number">1</span></span><br><span class="line">            j -= <span class="number">1</span></span><br><span class="line">        &#125;</span><br><span class="line">        count += <span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> i == j &#123;</span><br><span class="line">        count += <span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> count</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>可在这里在线运行：<a href="https://play.golang.org/p/lmOI5ZNkMNf" target="_blank" rel="noopener">https://play.golang.org/p/lmOI5ZNkMNf</a></p>
-
 	
 	</div>
   <a type="button" href="/hexo-blog/20190523/有序数组的不同绝对值个数/#more" class="btn btn-default more">Read More</a>
@@ -478,45 +470,45 @@ var _hmt = _hmt || [];
 		<h4>Tag Cloud</h4>
 		<ul class="tag_box inline list-unstyled">		
 		
-			<li><a href="/hexo-blog/tags/Openstack/">Openstack<span>1</span></a></li>
+			<li><a href="/hexo-blog/tags/蚁群算法/">蚁群算法<span>1</span></a></li>
 		
-			<li><a href="/hexo-blog/tags/爬虫/">爬虫<span>4</span></a></li>
+			<li><a href="/hexo-blog/tags/维修/">维修<span>1</span></a></li>
 		
-			<li><a href="/hexo-blog/tags/多线程/">多线程<span>1</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/操作系统/">操作系统<span>1</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/云计算/">云计算<span>5</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/转载/">转载<span>2</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/算法/">算法<span>4</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/terraform/">terraform<span>1</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/Fedora/">Fedora<span>1</span></a></li>
+			<li><a href="/hexo-blog/tags/K8S/">K8S<span>6</span></a></li>
 		
 			<li><a href="/hexo-blog/tags/硬件/">硬件<span>1</span></a></li>
 		
-			<li><a href="/hexo-blog/tags/连连看/">连连看<span>1</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/运维/">运维<span>1</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/Golang/">Golang<span>1</span></a></li>
-		
-			<li><a href="/hexo-blog/tags/Python/">Python<span>9</span></a></li>
-		
 			<li><a href="/hexo-blog/tags/原创/">原创<span>28</span></a></li>
 		
-			<li><a href="/hexo-blog/tags/游戏/">游戏<span>1</span></a></li>
+			<li><a href="/hexo-blog/tags/云计算/">云计算<span>5</span></a></li>
 		
-			<li><a href="/hexo-blog/tags/Prometheus/">Prometheus<span>1</span></a></li>
+			<li><a href="/hexo-blog/tags/黑客技术/">黑客技术<span>1</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/terraform/">terraform<span>1</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/网络/">网络<span>1</span></a></li>
 		
 			<li><a href="/hexo-blog/tags/etcd/">etcd<span>1</span></a></li>
 		
-			<li><a href="/hexo-blog/tags/主板/">主板<span>1</span></a></li>
+			<li><a href="/hexo-blog/tags/多线程/">多线程<span>1</span></a></li>
 		
-			<li><a href="/hexo-blog/tags/黑客技术/">黑客技术<span>1</span></a></li>
+			<li><a href="/hexo-blog/tags/游戏/">游戏<span>1</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/图像处理/">图像处理<span>1</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/Python/">Python<span>9</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/Fedora/">Fedora<span>1</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/操作系统/">操作系统<span>1</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/运维/">运维<span>1</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/Prometheus/">Prometheus<span>1</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/算法/">算法<span>4</span></a></li>
+		
+			<li><a href="/hexo-blog/tags/Golang/">Golang<span>1</span></a></li>
 		
 		
 		   <li><a href="/hexo-blog/tags">...<span>27</span></a></li>

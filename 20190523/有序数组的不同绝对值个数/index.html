@@ -13,9 +13,7 @@
 比如
 1[-3, -1, 0, 0, 1, 1, 2, 5]
 返回
-15
-分析第一种方法首先一个循环将数组所有的负数转换为正数，然后对整个数组进行排序。
-但循环一遍的时间复杂度为 O(n)，排序如果用堆排序，平均时间复杂度为 O(nlogn)，空间">
+15">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -133,6 +131,7 @@ var _hmt = _hmt || [];
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[-3, -1, 0, 0, 1, 1, 2, 5]</span><br></pre></td></tr></table></figure>
 <p>返回</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">5</span><br></pre></td></tr></table></figure>
+<a id="more"></a>
 <h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><h3 id="第一种方法"><a href="#第一种方法" class="headerlink" title="第一种方法"></a>第一种方法</h3><p>首先一个循环将数组所有的负数转换为正数，然后对整个数组进行排序。</p>
 <p>但循环一遍的时间复杂度为 <code>O(n)</code>，排序如果用堆排序，平均时间复杂度为 <code>O(nlogn)</code>，空间复杂度为 <code>O(1)</code>。因此整体的时间复杂度为 <code>O(nlogn)</code>，空间复杂度为 <code>O(1)</code>。而既然题目已经保证了有序数组，那有没有更快的方法呢？</p>
 <h3 id="第二种方法"><a href="#第二种方法" class="headerlink" title="第二种方法"></a>第二种方法</h3><p>我们可以用两个索引，索引 i 和 索引 j 分别从数组两端向中间移动，如果当前元素和下一个元素相等则跳过，如果右边的绝对值大于左边的绝对值，则索引 j 左移，如果左边的绝对值大于右边的绝对值，则索引 i 右移，如果两边绝对值相等，则索引同时左移和右移，每次移动计数加一。直到索引相遇时结束，如果相遇后索引刚好相等，则计数最后再加一。</p>
@@ -220,7 +219,7 @@ var _hmt = _hmt || [];
 	<a data-toggle="collapse" data-target="#tags"><i class="fa fa-tags"></i></a>		  
     <ul id="tags" class="tag_box list-unstyled collapse in">	  
 	    
-  <li><a href="/hexo-blog/tags/算法/">算法<span>4</span></a></li> <li><a href="/hexo-blog/tags/原创/">原创<span>28</span></a></li>
+  <li><a href="/hexo-blog/tags/原创/">原创<span>28</span></a></li> <li><a href="/hexo-blog/tags/算法/">算法<span>4</span></a></li>
     </ul>
 	</div>
 		
