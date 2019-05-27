@@ -321,6 +321,14 @@ export QVM_AK=
 export QVM_SK=
 ```
 
+创建 `terraform.tfvars` 文件：
+
+```
+instance_name = ""
+count = 1
+image = ""
+```
+
 ### 查看更改
 
 ```
