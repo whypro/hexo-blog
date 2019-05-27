@@ -7,7 +7,8 @@ title: Everlasting
 subtitle:
 description:
 author: whypro
-language: en
+#language: en
+language: zh-Hans
 timezone: Asia/Shanghai
 
 # URL
@@ -73,7 +74,8 @@ pagination_dir: page
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/
 #theme: alpha-dust
-theme: freemind.386
+#theme: freemind.386
+theme: melody
 #theme: next
 
 # Deployment
