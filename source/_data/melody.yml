@@ -137,7 +137,7 @@ post_meta:
 
 # Please see doc for more details: https://molunerfinn.com/hexo-theme-melody-doc/#/additional-package-support?id=word-counting
 wordcount:
-  enable: false
+  enable: true
 
 toc:
   enable: true
@@ -191,7 +191,7 @@ addThis:
 # Comments System
 # ---------------
 disqus:
-  enable: true
+  enable: false
   shortname: hexo-blog-everlasting
   count: true
 
@@ -273,7 +273,7 @@ canvas_ribbon:
 follow:
   enable: true
   url: https://github.com/whypro
-  text: Follow
+  text: 关注
 
 # Ads
 # ---------------

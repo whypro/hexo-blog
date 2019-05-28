@@ -3,7 +3,7 @@
 ## Source: https://github.com/hexojs/hexo/
 
 # Site
-title: Everlasting
+title: EVERLASTING
 subtitle:
 description:
 author: whypro
@@ -87,5 +87,3 @@ deploy:
 
 all_minifier: false
 
-# Disqus
-disqus_shortname: hexo-blog-everlasting
