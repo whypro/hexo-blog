@@ -7,8 +7,8 @@ title: EVERLASTING
 subtitle:
 description:
 author: whypro
-#language: en
-language: zh-Hans
+language: en
+#language: zh-Hans
 timezone: Asia/Shanghai
 
 # URL
@@ -75,7 +75,8 @@ pagination_dir: page
 ## Themes: https://hexo.io/themes/
 #theme: alpha-dust
 #theme: freemind.386
-theme: melody
+#theme: melody
+theme: icarus
 #theme: next
 
 # Deployment
