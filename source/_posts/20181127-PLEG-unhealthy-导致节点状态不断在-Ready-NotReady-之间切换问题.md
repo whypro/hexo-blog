@@ -76,11 +76,11 @@ kubelet <----> cri <----> dockerd <----> containerd
 
 同时由上面代码分析，PLEG 超时的原因，就是在更新某个 Pod 状态时，kubelet 通过 rpc 调用 docker daemon 或者 network plugin 时超时了。
 
-1. 调用 docker daemon 超时的原因有：
+**调用 docker daemon 超时的原因有：**
 
 docker daemon hang 住。
 
-2. 调用 network plugin 超时的原因有：
+**调用 network plugin 超时的原因有：**
 
 network plugin 是利用 command exec 方式调用的， 因为各种原因进程不退出，会导致调用 hang 住。
 
