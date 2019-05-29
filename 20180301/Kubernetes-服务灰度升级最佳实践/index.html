@@ -1,138 +1,192 @@
-<!DOCTYPE HTML>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head><meta name="generator" content="Hexo 3.8.0">
-  <meta charset="utf-8">
-  <meta http-equiv="pragma" content="no-cache">
-  <meta http-equiv="cache-control" content="no-cache">
-  <meta http-equiv="expires" content="0">
-  
-  <title>Kubernetes 服务灰度升级最佳实践 | Everlasting</title>
-  <meta name="author" content="whypro">
-  
-  <meta name="description" content="本文主要介绍了 Deployment 和 StatefulSet 的升级机制和扩缩容机制，以及一些常用的配置项。并分别介绍了以这两种方式部署 Pod 时的对服务进行升级（包括滚动发布、蓝绿发布、灰度／金丝雀发布）的最佳实践。
-Deployment升级机制RolloutDeployment 的 rollout 在 .spec.template 被修改时触发（比如镜像地址更新、Pod label 更新等等），其他修改（.spec.replicas 更新）不会触发。
-更新时，k8s 通过计算 pod-template-hash，创建新的 ReplicaSet，由新的 rs 启动新的 Pod，不断替换旧 rs 的 Pod。">
-  
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-
-  <meta property="og:title" content="Kubernetes 服务灰度升级最佳实践">
-  <meta property="og:site_name" content="Everlasting">
-
-  
-    <meta property="og:image" content>
-  
-
-  
-    <link rel="alternative" href="/hexo-blog/atom.xml" title="Everlasting" type="application/atom+xml">
-  
-  
-    <link href="/hexo-blog/favicon.png" rel="icon">
-  
-  
-  <link rel="stylesheet" href="/hexo-blog/css/bootstrap.min.css" media="screen" type="text/css">
-  <link rel="stylesheet" href="/hexo-blog/css/font-awesome.css" media="screen" type="text/css">
-  <link rel="stylesheet" href="/hexo-blog/css/style.css" media="screen" type="text/css">
-  <link rel="stylesheet" href="/hexo-blog/css/responsive.css" media="screen" type="text/css">
-  <link rel="stylesheet" href="/hexo-blog/css/highlight.css" media="screen" type="text/css">
-  <link rel="stylesheet" href="/hexo-blog/css/google-fonts.css" media="screen" type="text/css">
-  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
-
-  <script src="/hexo-blog/js/jquery-2.0.3.min.js"></script>
-
-  <!-- analytics -->
-  
+    <meta charset="utf-8">
+<title>Kubernetes 服务灰度升级最佳实践 - EVERLASTING</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
 
+
+    <meta name="description" content="本文主要介绍了 Deployment 和 StatefulSet 的升级机制和扩缩容机制，以及一些常用的配置项。并分别介绍了以这两种方式部署 Pod 时的对服务进行升级（包括滚动发布、蓝绿发布、灰度／金丝雀发布）的最佳实践。 Deployment升级机制RolloutDeployment 的 rollout 在 .spec.template 被修改时触发（比如镜像地址更新、Pod label 更新">
+<meta name="keywords" content="原创,Kubernetes,K8S">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Kubernetes 服务灰度升级最佳实践">
+<meta property="og:url" content="http://whypro.github.io/hexo-blog/20180301/Kubernetes-服务灰度升级最佳实践/index.html">
+<meta property="og:site_name" content="EVERLASTING">
+<meta property="og:description" content="本文主要介绍了 Deployment 和 StatefulSet 的升级机制和扩缩容机制，以及一些常用的配置项。并分别介绍了以这两种方式部署 Pod 时的对服务进行升级（包括滚动发布、蓝绿发布、灰度／金丝雀发布）的最佳实践。 Deployment升级机制RolloutDeployment 的 rollout 在 .spec.template 被修改时触发（比如镜像地址更新、Pod label 更新">
+<meta property="og:locale" content="en">
+<meta property="og:image" content="http://whypro.github.io/hexo-blog/images/og_image.png">
+<meta property="og:updated_time" content="2019-05-21T16:03:20.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Kubernetes 服务灰度升级最佳实践">
+<meta name="twitter:description" content="本文主要介绍了 Deployment 和 StatefulSet 的升级机制和扩缩容机制，以及一些常用的配置项。并分别介绍了以这两种方式部署 Pod 时的对服务进行升级（包括滚动发布、蓝绿发布、灰度／金丝雀发布）的最佳实践。 Deployment升级机制RolloutDeployment 的 rollout 在 .spec.template 被修改时触发（比如镜像地址更新、Pod label 更新">
+<meta name="twitter:image" content="http://whypro.github.io/hexo-blog/images/og_image.png">
+
+
+
+
+
+
+
+<link rel="icon" href="/hexo-blog/images/favicon.svg">
+
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.7.2/css/bulma.css">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Ubuntu:400,600|Source+Code+Pro">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@9.12.0/styles/atom-one-light.css">
+
+
+    
+    
+    
+    <style>body>.footer,body>.navbar,body>.section{opacity:0}</style>
+    
+
+    
+    
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@1.6.8/dist/css/lightgallery.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/css/justifiedGallery.min.css">
+    
+
+    
+    
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/outdatedbrowser@1.1.5/outdatedbrowser/outdatedbrowser.min.css">
+
+
+    
+    
+    
+    
+
+<link rel="stylesheet" href="/hexo-blog/css/back-to-top.css">
+
+
+    
+    
+
+    
+    
 <script>
 var _hmt = _hmt || [];
 (function() {
-  var hm = document.createElement("script");
-  hm.src = "//hm.baidu.com/hm.js?17e1c6a0010d7be7e49ae6d2c2e7b817";
-  var s = document.getElementsByTagName("script")[0]; 
-  s.parentNode.insertBefore(hm, s);
+    var hm = document.createElement("script");
+    hm.src = "//hm.baidu.com/hm.js?17e1c6a0010d7be7e49ae6d2c2e7b817";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
 })();
 </script>
 
+    
+    
 
+    
+    
+<link rel="stylesheet" href="/hexo-blog/css/progressbar.css">
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+    
+    
+    
+
+    
+    
+    
+
+
+<link rel="stylesheet" href="/hexo-blog/css/style.css">
 </head>
-</html>
- <body>  
-  <nav id="main-nav" class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+<body class="is-3-column">
+    <nav class="navbar navbar-main">
     <div class="container">
-      <button type="button" class="navbar-header navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-		<span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
-	  <a class="navbar-brand" href="/hexo-blog/">Everlasting</a>
-      <div class="collapse navbar-collapse nav-menu">
-		<ul class="nav navbar-nav">
-		  
-		  <li>
-			<a href="/hexo-blog/archives" title="All the articles.">
-			  <i class="fa fa-archive"></i>Archives
-			</a>
-		  </li>
-		  
-		  <li>
-			<a href="/hexo-blog/categories" title="All the categories.">
-			  <i class="fa fa-folder"></i>Categories
-			</a>
-		  </li>
-		  
-		  <li>
-			<a href="/hexo-blog/tags" title="All the tags.">
-			  <i class="fa fa-tags"></i>Tags
-			</a>
-		  </li>
-		  
-		  <li>
-			<a href="/hexo-blog/about.html" title="About me.">
-			  <i class="fa fa-user"></i>About
-			</a>
-		  </li>
-		  
-		</ul>
-      </div>
-    </div> <!-- container -->
+        <div class="navbar-brand is-flex-center">
+            <a class="navbar-item navbar-logo" href="/hexo-blog/">
+            
+                <img src="/hexo-blog/images/logo.svg" alt="Kubernetes 服务灰度升级最佳实践" height="28">
+            
+            </a>
+        </div>
+        <div class="navbar-menu">
+            
+            <div class="navbar-start">
+                
+                <a class="navbar-item" href="/hexo-blog/">Home</a>
+                
+                <a class="navbar-item" href="/hexo-blog/archives">Archives</a>
+                
+                <a class="navbar-item" href="/hexo-blog/categories">Categories</a>
+                
+                <a class="navbar-item" href="/hexo-blog/tags">Tags</a>
+                
+                <a class="navbar-item" href="/hexo-blog/about.html">About</a>
+                
+            </div>
+            
+            <div class="navbar-end">
+                
+                    
+                    
+                    <a class="navbar-item" target="_blank" title="GitHub" href="https://github.com/whypro">
+                        
+                        <i class="fab fa-github"></i>
+                        
+                    </a>
+                    
+                
+                
+                <a class="navbar-item is-hidden-tablet catalogue" title="Catalogue" href="javascript:;">
+                    <i class="fas fa-list-ul"></i>
+                </a>
+                
+                
+                <a class="navbar-item search" title="Search" href="javascript:;">
+                    <i class="fas fa-search"></i>
+                </a>
+                
+            </div>
+        </div>
+    </div>
 </nav>
-<div class="clearfix"></div>
-
-  <div class="container">
-  	<div class="content">
-    	 
-
-
-	
-		<div class="page-header">
-			<h1> Kubernetes 服务灰度升级最佳实践</h1>
-		</div>
-	
-
-
-
-<div class="row post">
-	<!-- cols -->
-	
-	<div id="top_meta"></div>
-	<div class="col-md-9">
-	
-
-	<!-- content -->
-	<div class="mypage">		
-	  		
-
-	  <p>本文主要介绍了 Deployment 和 StatefulSet 的升级机制和扩缩容机制，以及一些常用的配置项。并分别介绍了以这两种方式部署 Pod 时的对服务进行升级（包括滚动发布、蓝绿发布、灰度／金丝雀发布）的最佳实践。</p>
+    
+    <section class="section">
+        <div class="container">
+            <div class="columns">
+                <div class="column is-8-tablet is-8-desktop is-6-widescreen has-order-2 column-main"><div class="card">
+    
+    <div class="card-content article ">
+        
+        <div class="level article-meta is-size-7 is-uppercase is-mobile is-overflow-x-auto">
+            <div class="level-left">
+                <time class="level-item has-text-grey" datetime="2018-03-01T10:10:00.000Z">2018-03-01</time>
+                
+                
+                <span class="level-item has-text-grey">
+                    
+                    
+                    14 minutes read (About 2173 words)
+                </span>
+                
+                
+            </div>
+        </div>
+        
+        <h1 class="title is-size-3 is-size-4-mobile has-text-weight-normal">
+            
+                Kubernetes 服务灰度升级最佳实践
+            
+        </h1>
+        <div class="content">
+            <p>本文主要介绍了 Deployment 和 StatefulSet 的升级机制和扩缩容机制，以及一些常用的配置项。并分别介绍了以这两种方式部署 Pod 时的对服务进行升级（包括滚动发布、蓝绿发布、灰度／金丝雀发布）的最佳实践。</p>
 <h2 id="Deployment"><a href="#Deployment" class="headerlink" title="Deployment"></a>Deployment</h2><h3 id="升级机制"><a href="#升级机制" class="headerlink" title="升级机制"></a>升级机制</h3><h4 id="Rollout"><a href="#Rollout" class="headerlink" title="Rollout"></a>Rollout</h4><p>Deployment 的 rollout 在 .spec.template 被修改时触发（比如镜像地址更新、Pod label 更新等等），其他修改（.spec.replicas 更新）不会触发。</p>
 <p>更新时，k8s 通过计算 pod-template-hash，创建新的 ReplicaSet，由新的 rs 启动新的 Pod，不断替换旧 rs 的 Pod。</p>
 <a id="more"></a>
 <p>通过命令</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n &lt;namespace&gt; rollout status deployment/&lt;deployment-name&gt;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n &lt;namespace&gt; rollout status deployment/&lt;deployment-name&gt;</span><br></pre></td></tr></table></figure>
 <p>查看 Deployment rollout 的状态。</p>
 <p><code>.spec.strategy</code> 定义了更新 Pod 的策略：</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">minReadySeconds:</span> <span class="number">5</span></span><br><span class="line"><span class="attr">strategy:</span></span><br><span class="line"><span class="attr">  type:</span> <span class="string">RollingUpdate</span></span><br><span class="line"><span class="attr">  rollingUpdate:</span></span><br><span class="line"><span class="attr">    maxSurge:</span> <span class="number">1</span></span><br><span class="line"><span class="attr">    maxUnavailable:</span> <span class="number">1</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight yaml hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="hljs-attr">minReadySeconds:</span> <span class="hljs-number">5</span></span><br><span class="line"><span class="hljs-attr">strategy:</span></span><br><span class="line"><span class="hljs-attr">  type:</span> <span class="hljs-string">RollingUpdate</span></span><br><span class="line"><span class="hljs-attr">  rollingUpdate:</span></span><br><span class="line"><span class="hljs-attr">    maxSurge:</span> <span class="hljs-number">1</span></span><br><span class="line"><span class="hljs-attr">    maxUnavailable:</span> <span class="hljs-number">1</span></span><br></pre></td></tr></table></figure>
 <ul>
 <li><code>spec.strategy.type</code> 可以为 Recreate 或 RollingUpdate。Recreate 先删掉旧 Pod 再创建新 Pod，RollingUpdate 则按照滚动升级的策略来更新。</li>
 <li><code>maxUnavailable</code>：更新时，Deployment 确保不超过 25%（默认值） 的 Pod 处于 unavailable 状态。既可以是数量也可以是百分比，当 <code>maxSurge</code> 为 <code>0</code> 时 <code>maxUnavailable</code> 不能为 <code>0</code>。</li>
@@ -141,43 +195,43 @@ var _hmt = _hmt || [];
 </ul>
 <h4 id="Rollover"><a href="#Rollover" class="headerlink" title="Rollover"></a>Rollover</h4><p>当 Deployment 在 rollout 过程中被更新时，Deployment 会立即执行新的更新，停止之前的 rollout 动作，并根据期望实例数删除（缩容）之前的 Pod，这个过程叫做 rollover。</p>
 <h4 id="Rollback"><a href="#Rollback" class="headerlink" title="Rollback"></a>Rollback</h4><p>获取 Deployment 的 rollout 历史，最新的 revision 即当前版本</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n &lt;namespace&gt; rollout history deployment/&lt;deployment-name&gt;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n &lt;namespace&gt; rollout history deployment/&lt;deployment-name&gt;</span><br></pre></td></tr></table></figure>
 <p>查看指定 revision 的详细信息</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n &lt;namespace&gt; rollout history deployment/&lt;deployment-name&gt; --revision=&lt;revision_num&gt;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n &lt;namespace&gt; rollout history deployment/&lt;deployment-name&gt; --revision=&lt;revision_num&gt;</span><br></pre></td></tr></table></figure>
 <p>回滚到上一个版本</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n &lt;namespace&gt; rollout undo deployment/&lt;deployment-name&gt;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n &lt;namespace&gt; rollout undo deployment/&lt;deployment-name&gt;</span><br></pre></td></tr></table></figure>
 <p>回滚到指定版本</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n &lt;namespace&gt; rollout undo deployment/&lt;deployment-name&gt; --to-revision=&lt;revision_num&gt;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n &lt;namespace&gt; rollout undo deployment/&lt;deployment-name&gt; --to-revision=&lt;revision_num&gt;</span><br></pre></td></tr></table></figure>
 <p>当 Deployment 回滚成功时，会生成 DeploymentRollback 事件</p>
 <p>可以通过 <code>.spec.revisionHistoryLimit</code> 配置最多保留的 revision 历史个数（不包括当前版本），默认值为 2，即保留 3 个 revision。</p>
 <h4 id="Pause-Resume"><a href="#Pause-Resume" class="headerlink" title="Pause/Resume"></a>Pause/Resume</h4><p>当 Deployment 的 <code>.spec.paused = true</code> 时，任何更新都不会被触发 rollout。通过如下命令设置 Deployment 为 paused：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n &lt;namespace&gt; rollout pause deployment/&lt;deployment-name&gt;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n &lt;namespace&gt; rollout pause deployment/&lt;deployment-name&gt;</span><br></pre></td></tr></table></figure>
 <p>还原：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n &lt;namespace&gt; rollout resume deploy/&lt;deployment-name&gt;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n &lt;namespace&gt; rollout resume deploy/&lt;deployment-name&gt;</span><br></pre></td></tr></table></figure>
 <h3 id="扩缩容机制"><a href="#扩缩容机制" class="headerlink" title="扩缩容机制"></a>扩缩容机制</h3><h4 id="手动扩缩容"><a href="#手动扩缩容" class="headerlink" title="手动扩缩容"></a>手动扩缩容</h4><p>可以通过修改 <code>.spec.replicas</code>，或者执行 kubectl 命令的方式对 Deployment 进行扩缩容：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl scale deployment nginx-deployment --replicas=10</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl scale deployment nginx-deployment --replicas=10</span><br></pre></td></tr></table></figure>
 <h4 id="自动扩缩容"><a href="#自动扩缩容" class="headerlink" title="自动扩缩容"></a>自动扩缩容</h4><p>k8s 支持通过创建 HorizontalPodAutoscaler，根据 CPU 利用率或者服务提供的 metrics，对 Deployment、Replication Controller 或者 ReplicaSet 进行自动扩缩容。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl autoscale deployment nginx-deployment --min=10 --max=15 --cpu-percent=80</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl autoscale deployment nginx-deployment --min=10 --max=15 --cpu-percent=80</span><br></pre></td></tr></table></figure>
 <p>详细请参考：</p>
 <p><a href="https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/" target="_blank" rel="noopener">https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/</a></p>
 <p><a href="https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/" target="_blank" rel="noopener">https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/</a></p>
 <h3 id="发布最佳实践"><a href="#发布最佳实践" class="headerlink" title="发布最佳实践"></a>发布最佳实践</h3><h4 id="滚动发布"><a href="#滚动发布" class="headerlink" title="滚动发布"></a>滚动发布</h4><p>滚动发布是 Deployment 默认支持的更新方式，除了上文介绍的 rollingUpdate 相关配置外，不需要其他特殊的配置工作，</p>
 <h4 id="灰度／金丝雀发布"><a href="#灰度／金丝雀发布" class="headerlink" title="灰度／金丝雀发布"></a>灰度／金丝雀发布</h4><p>金丝雀发布通过同时创建两个 Deployments 来实现，通过 track 标签区分两个版本，稳定版本的 Deployment 定义如下：</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">name:</span> <span class="string">frontend</span></span><br><span class="line"><span class="attr">replicas:</span> <span class="number">3</span></span><br><span class="line"><span class="string">...</span></span><br><span class="line"><span class="attr">labels:</span></span><br><span class="line"><span class="attr">   app:</span> <span class="string">guestbook</span></span><br><span class="line"><span class="attr">   tier:</span> <span class="string">frontend</span></span><br><span class="line"><span class="attr">   track:</span> <span class="string">stable</span></span><br><span class="line"><span class="string">...</span></span><br><span class="line"><span class="attr">image:</span> <span class="attr">gb-frontend:v3</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight yaml hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="hljs-attr">name:</span> <span class="hljs-string">frontend</span></span><br><span class="line"><span class="hljs-attr">replicas:</span> <span class="hljs-number">3</span></span><br><span class="line"><span class="hljs-string">...</span></span><br><span class="line"><span class="hljs-attr">labels:</span></span><br><span class="line"><span class="hljs-attr">   app:</span> <span class="hljs-string">guestbook</span></span><br><span class="line"><span class="hljs-attr">   tier:</span> <span class="hljs-string">frontend</span></span><br><span class="line"><span class="hljs-attr">   track:</span> <span class="hljs-string">stable</span></span><br><span class="line"><span class="hljs-string">...</span></span><br><span class="line"><span class="hljs-attr">image:</span> <span class="hljs-attr">gb-frontend:v3</span></span><br></pre></td></tr></table></figure>
 <p>金丝雀版本的定义如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">name: frontend-canary</span><br><span class="line">replicas: 1</span><br><span class="line">...</span><br><span class="line">labels:</span><br><span class="line">   app: guestbook</span><br><span class="line">   tier: frontend</span><br><span class="line">   track: canary</span><br><span class="line">...</span><br><span class="line">image: gb-frontend:v4</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">name: frontend-canary</span><br><span class="line">replicas: 1</span><br><span class="line">...</span><br><span class="line">labels:</span><br><span class="line">   app: guestbook</span><br><span class="line">   tier: frontend</span><br><span class="line">   track: canary</span><br><span class="line">...</span><br><span class="line">image: gb-frontend:v4</span><br></pre></td></tr></table></figure>
 <p>再配置 service 的 labelSelector 将流量同时导入两个版本的 Pod</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">selector:</span></span><br><span class="line"><span class="attr">  app:</span> <span class="string">guestbook</span></span><br><span class="line"><span class="attr">  tier:</span> <span class="string">frontend</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight yaml hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="hljs-attr">selector:</span></span><br><span class="line"><span class="hljs-attr">  app:</span> <span class="hljs-string">guestbook</span></span><br><span class="line"><span class="hljs-attr">  tier:</span> <span class="hljs-string">frontend</span></span><br></pre></td></tr></table></figure>
 <p>通过 <code>.spec.replicas</code> 数量和扩缩容机制可以灵活配置稳定版本和金丝雀版本的比例（上面的例子为 3:1），流量会按照这个比例转发至不同版本，一旦线上测试无误后，将 track = stable 的 Deployment 更新为新版本镜像，再删除 track = canary 的 Deployment 即可。</p>
 <h4 id="蓝绿发布"><a href="#蓝绿发布" class="headerlink" title="蓝绿发布"></a>蓝绿发布</h4><p>与金丝雀发布类似，同时创建 2 个label 不同的 Deployment，例如，deployment-1 定义如下：</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">name:</span> <span class="string">frontend</span></span><br><span class="line"><span class="attr">replicas:</span> <span class="number">3</span></span><br><span class="line"><span class="string">...</span></span><br><span class="line"><span class="attr">labels:</span></span><br><span class="line"><span class="attr">   app:</span> <span class="string">guestbook</span></span><br><span class="line"><span class="attr">   tier:</span> <span class="string">frontend</span></span><br><span class="line"><span class="attr">   version:</span> <span class="string">v3</span></span><br><span class="line"><span class="string">...</span></span><br><span class="line"><span class="attr">image:</span> <span class="attr">gb-frontend:v3</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight yaml hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="hljs-attr">name:</span> <span class="hljs-string">frontend</span></span><br><span class="line"><span class="hljs-attr">replicas:</span> <span class="hljs-number">3</span></span><br><span class="line"><span class="hljs-string">...</span></span><br><span class="line"><span class="hljs-attr">labels:</span></span><br><span class="line"><span class="hljs-attr">   app:</span> <span class="hljs-string">guestbook</span></span><br><span class="line"><span class="hljs-attr">   tier:</span> <span class="hljs-string">frontend</span></span><br><span class="line"><span class="hljs-attr">   version:</span> <span class="hljs-string">v3</span></span><br><span class="line"><span class="hljs-string">...</span></span><br><span class="line"><span class="hljs-attr">image:</span> <span class="hljs-attr">gb-frontend:v3</span></span><br></pre></td></tr></table></figure>
 <p>deployment-2 定义如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">name: frontend</span><br><span class="line">replicas: 3</span><br><span class="line">...</span><br><span class="line">labels:</span><br><span class="line">   app: guestbook</span><br><span class="line">   tier: frontend</span><br><span class="line">   version: v4</span><br><span class="line">...</span><br><span class="line">image: gb-frontend:v4</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">name: frontend</span><br><span class="line">replicas: 3</span><br><span class="line">...</span><br><span class="line">labels:</span><br><span class="line">   app: guestbook</span><br><span class="line">   tier: frontend</span><br><span class="line">   version: v4</span><br><span class="line">...</span><br><span class="line">image: gb-frontend:v4</span><br></pre></td></tr></table></figure>
 <p>金丝雀发布通过修改 Deployment 的 replicas 数量和 Pod 镜像地址实现流量切换，而蓝绿发布通过修改 Service 的 labelSelector 实现流量切换。</p>
 <p>原 service 定义如下：</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">selector:</span></span><br><span class="line"><span class="attr">  app:</span> <span class="string">guestbook</span></span><br><span class="line"><span class="attr">  tier:</span> <span class="string">frontend</span></span><br><span class="line"><span class="attr">  version:</span> <span class="string">v3</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight yaml hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="hljs-attr">selector:</span></span><br><span class="line"><span class="hljs-attr">  app:</span> <span class="hljs-string">guestbook</span></span><br><span class="line"><span class="hljs-attr">  tier:</span> <span class="hljs-string">frontend</span></span><br><span class="line"><span class="hljs-attr">  version:</span> <span class="hljs-string">v3</span></span><br></pre></td></tr></table></figure>
 <p>切量时修改为：</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">selector:</span></span><br><span class="line"><span class="attr">  app:</span> <span class="string">guestbook</span></span><br><span class="line"><span class="attr">  tier:</span> <span class="string">frontend</span></span><br><span class="line"><span class="attr">  version:</span> <span class="string">v4</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight yaml hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="hljs-attr">selector:</span></span><br><span class="line"><span class="hljs-attr">  app:</span> <span class="hljs-string">guestbook</span></span><br><span class="line"><span class="hljs-attr">  tier:</span> <span class="hljs-string">frontend</span></span><br><span class="line"><span class="hljs-attr">  version:</span> <span class="hljs-string">v4</span></span><br></pre></td></tr></table></figure>
 <h2 id="StatefulSet"><a href="#StatefulSet" class="headerlink" title="StatefulSet"></a>StatefulSet</h2><p>StatefulSet 相对于 Deployment，具有以下特点：</p>
 <ul>
 <li>稳定：唯一的 Pod 名称，唯一的网络ID，持久化存储</li>
@@ -189,10 +243,10 @@ var _hmt = _hmt || [];
 <li><code>.spec.updateStrategy.rollingUpdate.partition</code> 可以实现灰度发布，当 StatefulSet 更新时，所有序号大于或等于 partition 的 Pod 会滚动更新；所有序号小于 partition 的 Pod 不会更新，即使被删掉，也会创建旧版本的 Pod。当 partition 大于 replicas 时，任何 Pod 都不会被更新。</li>
 </ul>
 <p>配置示例如下：</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">spec:</span></span><br><span class="line"><span class="attr">  replicas:</span> <span class="number">10</span></span><br><span class="line"><span class="attr">  updateStrategy:</span></span><br><span class="line"><span class="attr">    type:</span> <span class="string">RollingUpdate</span></span><br><span class="line"><span class="attr">    rollingUpdate:</span></span><br><span class="line"><span class="attr">      partition:</span> <span class="number">7</span>  <span class="comment"># 7, 8, 9 will be rolling updated</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight yaml hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="hljs-attr">spec:</span></span><br><span class="line"><span class="hljs-attr">  replicas:</span> <span class="hljs-number">10</span></span><br><span class="line"><span class="hljs-attr">  updateStrategy:</span></span><br><span class="line"><span class="hljs-attr">    type:</span> <span class="hljs-string">RollingUpdate</span></span><br><span class="line"><span class="hljs-attr">    rollingUpdate:</span></span><br><span class="line"><span class="hljs-attr">      partition:</span> <span class="hljs-number">7</span>  <span class="hljs-comment"># 7, 8, 9 will be rolling updated</span></span><br></pre></td></tr></table></figure>
 <p>StatefulSet 也支持 <code>kubectl rollout</code> 命令，使用方法同 Deployment。</p>
 <h3 id="扩缩容机制-1"><a href="#扩缩容机制-1" class="headerlink" title="扩缩容机制"></a>扩缩容机制</h3><p>可以通过 <code>spec.podManagementPolicy</code> 来配置 StatefulSet 的扩缩容策略</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">spec:</span></span><br><span class="line"><span class="attr">  podManagementPolicy:</span> <span class="string">OrderdReady</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight yaml hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="hljs-attr">spec:</span></span><br><span class="line"><span class="hljs-attr">  podManagementPolicy:</span> <span class="hljs-string">OrderdReady</span></span><br></pre></td></tr></table></figure>
 <h4 id="OrderedReady"><a href="#OrderedReady" class="headerlink" title="OrderedReady"></a>OrderedReady</h4><p>默认行为</p>
 <p>扩容时，Pod 按照 {0 .. N-1} 依次创建，并且前一个 Running／Ready 之后，后一个才会创建</p>
 <p>缩容时，Pod 按照 {N-1 .. 0} 依次删除，前一个完全删除之后，后一个才会开始删除</p>
@@ -200,13 +254,13 @@ var _hmt = _hmt || [];
 <p>注意，该配置仅仅对扩缩容（修改 replicas）的情况有效，升级 StatefulSet 时 k8s 依然按照次序来更新 Pod。</p>
 <h3 id="唯一网络-ID"><a href="#唯一网络-ID" class="headerlink" title="唯一网络 ID"></a>唯一网络 ID</h3><p>每个 Pod 都有唯一的 hostname，格式为 <statefulset-name>-<pod 序号>，domain name 的格式为 <headless-svc-name>.<namespace>.svc.cluster.local，通过该 domain name 可以解析到 StatefulSet 下所有的 Pod。通过  <statefulset-name>-<pod 序号>.<headless-svc-name>.<namespace>.svc.cluster.local 可以解析到指定 Pod。</namespace></headless-svc-name></pod></statefulset-name></namespace></headless-svc-name></pod></statefulset-name></p>
 <h3 id="稳定存储"><a href="#稳定存储" class="headerlink" title="稳定存储"></a>稳定存储</h3><p>通过配置 StatefulSet 的 <code>volumeClaimTemplates</code>，k8s 会为每个 Pod 创建 PV 和 PVC 并绑定。当 Pod 删除时，对应的 PVC 不会被删除，当重新创建时，仍然会绑定到之前的 PV。</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">volumeClaimTemplates:</span></span><br><span class="line"><span class="attr">- metadata:</span></span><br><span class="line"><span class="attr">    name:</span> <span class="string">www</span></span><br><span class="line"><span class="attr">  spec:</span></span><br><span class="line"><span class="attr">    accessModes:</span> <span class="string">[</span> <span class="string">"ReadWriteOnce"</span> <span class="string">]</span></span><br><span class="line"><span class="attr">    storageClassName:</span> <span class="string">"my-storage-class"</span></span><br><span class="line"><span class="attr">    resources:</span></span><br><span class="line"><span class="attr">      requests:</span></span><br><span class="line"><span class="attr">        storage:</span> <span class="number">1</span><span class="string">Gi</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight yaml hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="hljs-attr">volumeClaimTemplates:</span></span><br><span class="line"><span class="hljs-attr">- metadata:</span></span><br><span class="line"><span class="hljs-attr">    name:</span> <span class="hljs-string">www</span></span><br><span class="line"><span class="hljs-attr">  spec:</span></span><br><span class="line"><span class="hljs-attr">    accessModes:</span> <span class="hljs-string">[</span> <span class="hljs-string">"ReadWriteOnce"</span> <span class="hljs-string">]</span></span><br><span class="line"><span class="hljs-attr">    storageClassName:</span> <span class="hljs-string">"my-storage-class"</span></span><br><span class="line"><span class="hljs-attr">    resources:</span></span><br><span class="line"><span class="hljs-attr">      requests:</span></span><br><span class="line"><span class="hljs-attr">        storage:</span> <span class="hljs-number">1</span><span class="hljs-string">Gi</span></span><br></pre></td></tr></table></figure>
 <h3 id="发布最佳实践-1"><a href="#发布最佳实践-1" class="headerlink" title="发布最佳实践"></a>发布最佳实践</h3><h4 id="滚动发布-1"><a href="#滚动发布-1" class="headerlink" title="滚动发布"></a>滚动发布</h4><p>滚动发布需要配置 <code>.spec.updateStrategy.type</code> 为 <code>RollingUpdate</code>，StatefulSet 的默认行为是按照 {N-1 .. 0} 的顺序依次更新。</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">spec:</span></span><br><span class="line"><span class="attr">  updateStrategy:</span></span><br><span class="line"><span class="attr">    type:</span> <span class="string">RollingUpdate</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight yaml hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="hljs-attr">spec:</span></span><br><span class="line"><span class="hljs-attr">  updateStrategy:</span></span><br><span class="line"><span class="hljs-attr">    type:</span> <span class="hljs-string">RollingUpdate</span></span><br></pre></td></tr></table></figure>
 <h4 id="蓝绿发布-1"><a href="#蓝绿发布-1" class="headerlink" title="蓝绿发布"></a>蓝绿发布</h4><p>蓝绿发布与 Deployment 的方式相同，通过创建 2 个 StatefulSet，修改 Service 的方式实现切量。</p>
 <h4 id="灰度／金丝雀发布-1"><a href="#灰度／金丝雀发布-1" class="headerlink" title="灰度／金丝雀发布"></a>灰度／金丝雀发布</h4><p>金丝雀发布通过修改 StatefulSet 的 <code>.spec.updateStrategy.rollingUpdate.partition</code> 的值来实现发布。</p>
 <p>例如 replicas 为 10 时，Pod 的序号为 0 - 9，首先将 partition 设置为 7，再修改 StatefulSet 的 Pod template 配置，会依次触发 Pod 9, 8, 7 的滚动更新，Pod 0-6 依然维持老版本，此时老版本与旧版本的比例为 7:3。线上验证无误后，再将 partition 设置为 0，依次触发 Pod 6 - 0 的滚动更新，此时全部更新至新版本。</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">spec:</span></span><br><span class="line"><span class="attr">  replicas:</span> <span class="number">10</span></span><br><span class="line"><span class="attr">  updateStrategy:</span></span><br><span class="line"><span class="attr">    type:</span> <span class="string">RollingUpdate</span></span><br><span class="line"><span class="attr">    rollingUpdate:</span></span><br><span class="line"><span class="attr">      partition:</span> <span class="number">7</span>  <span class="comment"># 7, 8, 9 will be rolling updated</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight yaml hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="hljs-attr">spec:</span></span><br><span class="line"><span class="hljs-attr">  replicas:</span> <span class="hljs-number">10</span></span><br><span class="line"><span class="hljs-attr">  updateStrategy:</span></span><br><span class="line"><span class="hljs-attr">    type:</span> <span class="hljs-string">RollingUpdate</span></span><br><span class="line"><span class="hljs-attr">    rollingUpdate:</span></span><br><span class="line"><span class="hljs-attr">      partition:</span> <span class="hljs-number">7</span>  <span class="hljs-comment"># 7, 8, 9 will be rolling updated</span></span><br></pre></td></tr></table></figure>
 <h2 id="Replication-Controller-（官方已不推荐使用）"><a href="#Replication-Controller-（官方已不推荐使用）" class="headerlink" title="Replication Controller （官方已不推荐使用）"></a>Replication Controller （官方已不推荐使用）</h2><p>kubectl rolling-update 只适用于 Replication Controllers，已经被 Deployment 取代，在此不过多介绍。</p>
 <p><a href="https://kubernetes.io/docs/tasks/run-application/rolling-update-replication-controller/" target="_blank" rel="noopener">https://kubernetes.io/docs/tasks/run-application/rolling-update-replication-controller/</a></p>
 <h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><ul>
@@ -217,168 +271,1790 @@ var _hmt = _hmt || [];
 <li>StatefulSet：<a href="https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/" target="_blank" rel="noopener">https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/
 </a></li>
 </ul>
-	  
-	</div>
 
-	<div>
-  	<center>
-	<div class="pagination">
+        </div>
+        
+        <div class="level is-size-7 is-uppercase">
+            <div class="level-start">
+                <div class="level-item">
+                    <span class="is-size-6 has-text-grey has-mr-7">#</span>
+                    <a class="has-link-grey -link" href="/hexo-blog/tags/K8S/">K8S</a>, <a class="has-link-grey -link" href="/hexo-blog/tags/Kubernetes/">Kubernetes</a>, <a class="has-link-grey -link" href="/hexo-blog/tags/原创/">原创</a>
+                </div>
+            </div>
+        </div>
+        
+        
+        
+    </div>
+</div>
+
+
+
+
+
+<div class="card card-transparent">
+    <div class="level post-navigation is-flex-wrap is-mobile">
+        
+        <div class="level-start">
+            <a class="level level-item has-link-grey  article-nav-prev" href="/hexo-blog/20180404/Kubernetes-容器生命周期管理/">
+                <i class="level-item fas fa-chevron-left"></i>
+                <span class="level-item">Kubernetes 容器生命周期管理</span>
+            </a>
+        </div>
+        
+        
+        <div class="level-end">
+            <a class="level level-item has-link-grey  article-nav-next" href="/hexo-blog/20180110/从头编写一款时间序列数据库/">
+                <span class="level-item">从头编写一款时间序列数据库</span>
+                <i class="level-item fas fa-chevron-right"></i>
+            </a>
+        </div>
+        
+    </div>
+</div>
+
+
+
+<div class="card">
+    <div class="card-content">
+        <h3 class="title is-5 has-text-weight-normal">Comments</h3>
+        
+<script>
+    var disqus_config = function () {
+        this.page.url = 'http://whypro.github.io/hexo-blog/20180301/Kubernetes-服务灰度升级最佳实践/';
+        this.page.identifier = '20180301/Kubernetes-服务灰度升级最佳实践/';
+    };
+    (function() {
+        var d = document, s = d.createElement('script');  
+        s.src = '//' + 'hexo-blog-everlasting' + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+
+<div id="disqus_thread">
+    
+    <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+    </div>
+</div>
+</div>
+                
+
+
+
+
+<div class="column is-4-tablet is-4-desktop is-3-widescreen  has-order-1 column-left is-sticky">
+    
+        
+<div class="card widget">
+    <div class="card-content">
+        <nav class="level">
+            <div class="level-item has-text-centered">
+                <div>
+                    
+                        <img class="image is-128x128 has-mb-6" src="https://www.gravatar.com/avatar/94e51951b08a6a8f31f660f706a38268?s=128" alt="whypro">
+                    
+                    
+                    <p class="is-size-4 is-block">
+                        whypro
+                    </p>
+                    
+                    
+                    <p class="is-size-6 is-block">
+                        Don&#39;t think twice, it&#39;s all right.
+                    </p>
+                    
+                    
+                    <p class="is-size-6 is-flex is-flex-center has-text-grey">
+                        <i class="fas fa-map-marker-alt has-mr-7"></i>
+                        <span>Shanghai</span>
+                    </p>
+                    
+                </div>
+            </div>
+        </nav>
+        <nav class="level is-mobile">
+            <div class="level-item has-text-centered is-marginless">
+                <div>
+                    <p class="heading">
+                        Posts
+                    </p>
+                    <p class="title has-text-weight-normal">
+                        32
+                    </p>
+                </div>
+            </div>
+            <div class="level-item has-text-centered is-marginless">
+                <div>
+                    <p class="heading">
+                        Categories
+                    </p>
+                    <p class="title has-text-weight-normal">
+                        0
+                    </p>
+                </div>
+            </div>
+            <div class="level-item has-text-centered is-marginless">
+                <div>
+                    <p class="heading">
+                        Tags
+                    </p>
+                    <p class="title has-text-weight-normal">
+                        31
+                    </p>
+                </div>
+            </div>
+        </nav>
+        <div class="level">
+            <a class="level-item button is-link is-rounded" href="https://github.com/whypro" target="_blank">
+                Follow</a>
+        </div>
+        
+        
+        <div class="level is-mobile">
+            
+            <a class="level-item button is-white is-marginless" target="_blank" title="Github" href="https://github.com/whypro">
+                
+                <i class="fab fa-github"></i>
+                
+            </a>
+            
+            <a class="level-item button is-white is-marginless" target="_blank" title="RSS" href="/hexo-blog/">
+                
+                <i class="fas fa-rss"></i>
+                
+            </a>
+            
+        </div>
+        
+    </div>
+</div>
+    
+        
+
+<div class="card widget">
+    <div class="card-content">
+        <div class="menu">
+        <h3 class="menu-label">
+            Links
+        </h3>
+        <ul class="menu-list">
+        
+            <li>
+                <a class="level is-mobile" href="https://hexo.io" target="_blank">
+                    <span class="level-left">
+                        <span class="level-item">Hexo</span>
+                    </span>
+                    <span class="level-right">
+                        <span class="level-item tag">hexo.io</span>
+                    </span>
+                </a>
+            </li>
+        
+            <li>
+                <a class="level is-mobile" href="https://github.com/whypro" target="_blank">
+                    <span class="level-left">
+                        <span class="level-item">whypro</span>
+                    </span>
+                    <span class="level-right">
+                        <span class="level-item tag">github.com</span>
+                    </span>
+                </a>
+            </li>
+        
+        </ul>
+        </div>
+    </div>
+</div>
+
+
+    
+        
+<div class="card widget">
+    <div class="card-content">
+        <div class="menu">
+            <h3 class="menu-label">
+                Categories
+            </h3>
+            <ul class="menu-list">
+            
+            </ul>
+        </div>
+    </div>
+</div>
+    
+        
+<div class="card widget">
+    <div class="card-content">
+        <h3 class="menu-label">
+            Tag Cloud
+        </h3>
+        <a href="/hexo-blog/tags/Android/" style="font-size: 10px;">Android</a> <a href="/hexo-blog/tags/Fedora/" style="font-size: 10px;">Fedora</a> <a href="/hexo-blog/tags/Golang/" style="font-size: 10px;">Golang</a> <a href="/hexo-blog/tags/HTC/" style="font-size: 10px;">HTC</a> <a href="/hexo-blog/tags/K8S/" style="font-size: 16.67px;">K8S</a> <a href="/hexo-blog/tags/Kubernetes/" style="font-size: 16.67px;">Kubernetes</a> <a href="/hexo-blog/tags/Linux/" style="font-size: 10px;">Linux</a> <a href="/hexo-blog/tags/Openstack/" style="font-size: 10px;">Openstack</a> <a href="/hexo-blog/tags/Prometheus/" style="font-size: 10px;">Prometheus</a> <a href="/hexo-blog/tags/Python/" style="font-size: 18.33px;">Python</a> <a href="/hexo-blog/tags/etcd/" style="font-size: 10px;">etcd</a> <a href="/hexo-blog/tags/terraform/" style="font-size: 10px;">terraform</a> <a href="/hexo-blog/tags/主板/" style="font-size: 10px;">主板</a> <a href="/hexo-blog/tags/云计算/" style="font-size: 15px;">云计算</a> <a href="/hexo-blog/tags/刷机/" style="font-size: 10px;">刷机</a> <a href="/hexo-blog/tags/原创/" style="font-size: 20px;">原创</a> <a href="/hexo-blog/tags/图像处理/" style="font-size: 10px;">图像处理</a> <a href="/hexo-blog/tags/多线程/" style="font-size: 10px;">多线程</a> <a href="/hexo-blog/tags/安卓/" style="font-size: 10px;">安卓</a> <a href="/hexo-blog/tags/操作系统/" style="font-size: 10px;">操作系统</a> <a href="/hexo-blog/tags/游戏/" style="font-size: 10px;">游戏</a> <a href="/hexo-blog/tags/爬虫/" style="font-size: 13.33px;">爬虫</a> <a href="/hexo-blog/tags/硬件/" style="font-size: 10px;">硬件</a> <a href="/hexo-blog/tags/算法/" style="font-size: 15px;">算法</a> <a href="/hexo-blog/tags/维修/" style="font-size: 10px;">维修</a> <a href="/hexo-blog/tags/网络/" style="font-size: 10px;">网络</a> <a href="/hexo-blog/tags/蚁群算法/" style="font-size: 10px;">蚁群算法</a> <a href="/hexo-blog/tags/转载/" style="font-size: 11.67px;">转载</a> <a href="/hexo-blog/tags/运维/" style="font-size: 10px;">运维</a> <a href="/hexo-blog/tags/连连看/" style="font-size: 10px;">连连看</a> <a href="/hexo-blog/tags/黑客技术/" style="font-size: 10px;">黑客技术</a>
+    </div>
+</div>
 
     
     
-    <a href="/hexo-blog/20180404/Kubernetes-容器生命周期管理/" type="button" class="btn btn-default"><i class="fa fa-arrow-circle-o-left"></i> Prev</a>
-    
+        <div class="column-right-shadow is-hidden-widescreen is-sticky">
+        
+            
+<div class="card widget" id="toc">
+    <div class="card-content">
+        <div class="menu">
+            <h3 class="menu-label">
+                Catalogue
+            </h3>
+            <ul class="menu-list"><li>
+        <a class="is-flex" href="#Deployment">
+        <span class="has-mr-6">1</span>
+        <span>Deployment</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#升级机制">
+        <span class="has-mr-6">1.1</span>
+        <span>升级机制</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#Rollout">
+        <span class="has-mr-6">1.1.1</span>
+        <span>Rollout</span>
+        </a></li><li>
+        <a class="is-flex" href="#Rollover">
+        <span class="has-mr-6">1.1.2</span>
+        <span>Rollover</span>
+        </a></li><li>
+        <a class="is-flex" href="#Rollback">
+        <span class="has-mr-6">1.1.3</span>
+        <span>Rollback</span>
+        </a></li><li>
+        <a class="is-flex" href="#Pause-Resume">
+        <span class="has-mr-6">1.1.4</span>
+        <span>Pause/Resume</span>
+        </a></li></ul></li><li>
+        <a class="is-flex" href="#扩缩容机制">
+        <span class="has-mr-6">1.2</span>
+        <span>扩缩容机制</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#手动扩缩容">
+        <span class="has-mr-6">1.2.1</span>
+        <span>手动扩缩容</span>
+        </a></li><li>
+        <a class="is-flex" href="#自动扩缩容">
+        <span class="has-mr-6">1.2.2</span>
+        <span>自动扩缩容</span>
+        </a></li></ul></li><li>
+        <a class="is-flex" href="#发布最佳实践">
+        <span class="has-mr-6">1.3</span>
+        <span>发布最佳实践</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#滚动发布">
+        <span class="has-mr-6">1.3.1</span>
+        <span>滚动发布</span>
+        </a></li><li>
+        <a class="is-flex" href="#灰度／金丝雀发布">
+        <span class="has-mr-6">1.3.2</span>
+        <span>灰度／金丝雀发布</span>
+        </a></li><li>
+        <a class="is-flex" href="#蓝绿发布">
+        <span class="has-mr-6">1.3.3</span>
+        <span>蓝绿发布</span>
+        </a></li></ul></li></ul></li><li>
+        <a class="is-flex" href="#StatefulSet">
+        <span class="has-mr-6">2</span>
+        <span>StatefulSet</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#升级机制-1">
+        <span class="has-mr-6">2.1</span>
+        <span>升级机制</span>
+        </a></li><li>
+        <a class="is-flex" href="#扩缩容机制-1">
+        <span class="has-mr-6">2.2</span>
+        <span>扩缩容机制</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#OrderedReady">
+        <span class="has-mr-6">2.2.1</span>
+        <span>OrderedReady</span>
+        </a></li><li>
+        <a class="is-flex" href="#Parallel">
+        <span class="has-mr-6">2.2.2</span>
+        <span>Parallel</span>
+        </a></li></ul></li><li>
+        <a class="is-flex" href="#唯一网络-ID">
+        <span class="has-mr-6">2.3</span>
+        <span>唯一网络 ID</span>
+        </a></li><li>
+        <a class="is-flex" href="#稳定存储">
+        <span class="has-mr-6">2.4</span>
+        <span>稳定存储</span>
+        </a></li><li>
+        <a class="is-flex" href="#发布最佳实践-1">
+        <span class="has-mr-6">2.5</span>
+        <span>发布最佳实践</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#滚动发布-1">
+        <span class="has-mr-6">2.5.1</span>
+        <span>滚动发布</span>
+        </a></li><li>
+        <a class="is-flex" href="#蓝绿发布-1">
+        <span class="has-mr-6">2.5.2</span>
+        <span>蓝绿发布</span>
+        </a></li><li>
+        <a class="is-flex" href="#灰度／金丝雀发布-1">
+        <span class="has-mr-6">2.5.3</span>
+        <span>灰度／金丝雀发布</span>
+        </a></li></ul></li></ul></li><li>
+        <a class="is-flex" href="#Replication-Controller-（官方已不推荐使用）">
+        <span class="has-mr-6">3</span>
+        <span>Replication Controller （官方已不推荐使用）</span>
+        </a></li><li>
+        <a class="is-flex" href="#参考">
+        <span class="has-mr-6">4</span>
+        <span>参考</span>
+        </a></li></ul>
+        </div>
+    </div>
+</div>
 
-    <a href="/hexo-blog/" type="button" class="btn btn-default"><i class="fa fa-home"></i>Home</a>
-    
-    <a href="/hexo-blog/20180110/从头编写一款时间序列数据库/" type="button" class="btn btn-default ">Next<i class="fa fa-arrow-circle-o-right"></i></a>
-    
+        
+            
+<div class="card widget">
+    <div class="card-content">
+        <h3 class="menu-label">
+            Recent
+        </h3>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T13:42:51.000Z">2019-05-23</time></div>
+                    <a href="/hexo-blog/20190523/HTC-刷机备忘/" class="has-link-black-ter is-size-6">HTC 刷机备忘</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T13:01:16.000Z">2019-05-23</time></div>
+                    <a href="/hexo-blog/20190523/二叉树两个节点之间的最大距离/" class="has-link-black-ter is-size-6">二叉树两个节点之间的最大距离</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T11:11:28.000Z">2019-05-23</time></div>
+                    <a href="/hexo-blog/20190523/有序数组的不同绝对值个数/" class="has-link-black-ter is-size-6">有序数组的不同绝对值个数</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-22T06:13:02.000Z">2019-05-22</time></div>
+                    <a href="/hexo-blog/20190522/从零开始实现一个-terraform-plugin/" class="has-link-black-ter is-size-6">从零开始实现一个 terraform plugin</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-01-07T07:22:00.000Z">2019-01-07</time></div>
+                    <a href="/hexo-blog/20190107/使用-Devstack-搭建-Openstack-集群/" class="has-link-black-ter is-size-6">使用 Devstack 搭建 Openstack 集群</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+    </div>
+</div>
 
+        
+            <div class="card widget">
+    <div class="card-content">
+        <div class="menu">
+        <h3 class="menu-label">
+            Archives
+        </h3>
+        <ul class="menu-list">
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2019/05/">
+                <span class="level-start">
+                    <span class="level-item">May 2019</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">4</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2019/01/">
+                <span class="level-start">
+                    <span class="level-item">January 2019</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/11/">
+                <span class="level-start">
+                    <span class="level-item">November 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/07/">
+                <span class="level-start">
+                    <span class="level-item">July 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/04/">
+                <span class="level-start">
+                    <span class="level-item">April 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/03/">
+                <span class="level-start">
+                    <span class="level-item">March 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/01/">
+                <span class="level-start">
+                    <span class="level-item">January 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2017/12/">
+                <span class="level-start">
+                    <span class="level-item">December 2017</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2017/10/">
+                <span class="level-start">
+                    <span class="level-item">October 2017</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2017/09/">
+                <span class="level-start">
+                    <span class="level-item">September 2017</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2015/07/">
+                <span class="level-start">
+                    <span class="level-item">July 2015</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2015/04/">
+                <span class="level-start">
+                    <span class="level-item">April 2015</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/09/">
+                <span class="level-start">
+                    <span class="level-item">September 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/08/">
+                <span class="level-start">
+                    <span class="level-item">August 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/05/">
+                <span class="level-start">
+                    <span class="level-item">May 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/04/">
+                <span class="level-start">
+                    <span class="level-item">April 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">4</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/03/">
+                <span class="level-start">
+                    <span class="level-item">March 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">2</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/10/">
+                <span class="level-start">
+                    <span class="level-item">October 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">3</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/09/">
+                <span class="level-start">
+                    <span class="level-item">September 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/08/">
+                <span class="level-start">
+                    <span class="level-item">August 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/07/">
+                <span class="level-start">
+                    <span class="level-item">July 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/06/">
+                <span class="level-start">
+                    <span class="level-item">June 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/02/">
+                <span class="level-start">
+                    <span class="level-item">February 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        </ul>
+        </div>
+    </div>
+</div>
+        
+            <div class="card widget">
+    <div class="card-content">
+        <div class="menu">
+            <h3 class="menu-label">
+                Tags
+            </h3>
+            <div class="field is-grouped is-grouped-multiline">
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Android/">
+                        <span class="tag">Android</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Fedora/">
+                        <span class="tag">Fedora</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Golang/">
+                        <span class="tag">Golang</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/HTC/">
+                        <span class="tag">HTC</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/K8S/">
+                        <span class="tag">K8S</span>
+                        <span class="tag is-grey">6</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Kubernetes/">
+                        <span class="tag">Kubernetes</span>
+                        <span class="tag is-grey">6</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Linux/">
+                        <span class="tag">Linux</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Openstack/">
+                        <span class="tag">Openstack</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Prometheus/">
+                        <span class="tag">Prometheus</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Python/">
+                        <span class="tag">Python</span>
+                        <span class="tag is-grey">9</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/etcd/">
+                        <span class="tag">etcd</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/terraform/">
+                        <span class="tag">terraform</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/主板/">
+                        <span class="tag">主板</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/云计算/">
+                        <span class="tag">云计算</span>
+                        <span class="tag is-grey">5</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/刷机/">
+                        <span class="tag">刷机</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/原创/">
+                        <span class="tag">原创</span>
+                        <span class="tag is-grey">30</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/图像处理/">
+                        <span class="tag">图像处理</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/多线程/">
+                        <span class="tag">多线程</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/安卓/">
+                        <span class="tag">安卓</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/操作系统/">
+                        <span class="tag">操作系统</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/游戏/">
+                        <span class="tag">游戏</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/爬虫/">
+                        <span class="tag">爬虫</span>
+                        <span class="tag is-grey">4</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/硬件/">
+                        <span class="tag">硬件</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/算法/">
+                        <span class="tag">算法</span>
+                        <span class="tag is-grey">5</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/维修/">
+                        <span class="tag">维修</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/网络/">
+                        <span class="tag">网络</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/蚁群算法/">
+                        <span class="tag">蚁群算法</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/转载/">
+                        <span class="tag">转载</span>
+                        <span class="tag is-grey">2</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/运维/">
+                        <span class="tag">运维</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/连连看/">
+                        <span class="tag">连连看</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/黑客技术/">
+                        <span class="tag">黑客技术</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+        
+        </div>
     
 </div>
 
-    </center>
-	</div>
-	
-	<!-- comment -->
-	
-<section id="comment">
-    <h2 class="title">Comments</h2>
+                
 
+
+
+
+<div class="column is-4-tablet is-4-desktop is-3-widescreen is-hidden-touch is-hidden-desktop-only has-order-3 column-right is-sticky">
     
-    <div id="disqus_thread" class="ds-thread">
-        <script type="text/javascript">
-            /**
-             * RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
-             * LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables
-             */
-                /*
-                 var disqus_config = function () {
-                 this.page.url = PAGE_URL; // Replace PAGE_URL with your page's canonical URL variable
-                 this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
-                 };
-                 */
-            (function() { // DON'T EDIT BELOW THIS LINE
-                var d = document, s = d.createElement('script');
-
-                s.src = '//hexo-blog-everlasting.disqus.com/embed.js';
-
-                s.setAttribute('data-timestamp', +new Date());
-                (d.head || d.body).appendChild(s);
-            })();
-        </script>
-        <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by
-                Disqus.</a></noscript>
+        
+<div class="card widget" id="toc">
+    <div class="card-content">
+        <div class="menu">
+            <h3 class="menu-label">
+                Catalogue
+            </h3>
+            <ul class="menu-list"><li>
+        <a class="is-flex" href="#Deployment">
+        <span class="has-mr-6">1</span>
+        <span>Deployment</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#升级机制">
+        <span class="has-mr-6">1.1</span>
+        <span>升级机制</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#Rollout">
+        <span class="has-mr-6">1.1.1</span>
+        <span>Rollout</span>
+        </a></li><li>
+        <a class="is-flex" href="#Rollover">
+        <span class="has-mr-6">1.1.2</span>
+        <span>Rollover</span>
+        </a></li><li>
+        <a class="is-flex" href="#Rollback">
+        <span class="has-mr-6">1.1.3</span>
+        <span>Rollback</span>
+        </a></li><li>
+        <a class="is-flex" href="#Pause-Resume">
+        <span class="has-mr-6">1.1.4</span>
+        <span>Pause/Resume</span>
+        </a></li></ul></li><li>
+        <a class="is-flex" href="#扩缩容机制">
+        <span class="has-mr-6">1.2</span>
+        <span>扩缩容机制</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#手动扩缩容">
+        <span class="has-mr-6">1.2.1</span>
+        <span>手动扩缩容</span>
+        </a></li><li>
+        <a class="is-flex" href="#自动扩缩容">
+        <span class="has-mr-6">1.2.2</span>
+        <span>自动扩缩容</span>
+        </a></li></ul></li><li>
+        <a class="is-flex" href="#发布最佳实践">
+        <span class="has-mr-6">1.3</span>
+        <span>发布最佳实践</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#滚动发布">
+        <span class="has-mr-6">1.3.1</span>
+        <span>滚动发布</span>
+        </a></li><li>
+        <a class="is-flex" href="#灰度／金丝雀发布">
+        <span class="has-mr-6">1.3.2</span>
+        <span>灰度／金丝雀发布</span>
+        </a></li><li>
+        <a class="is-flex" href="#蓝绿发布">
+        <span class="has-mr-6">1.3.3</span>
+        <span>蓝绿发布</span>
+        </a></li></ul></li></ul></li><li>
+        <a class="is-flex" href="#StatefulSet">
+        <span class="has-mr-6">2</span>
+        <span>StatefulSet</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#升级机制-1">
+        <span class="has-mr-6">2.1</span>
+        <span>升级机制</span>
+        </a></li><li>
+        <a class="is-flex" href="#扩缩容机制-1">
+        <span class="has-mr-6">2.2</span>
+        <span>扩缩容机制</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#OrderedReady">
+        <span class="has-mr-6">2.2.1</span>
+        <span>OrderedReady</span>
+        </a></li><li>
+        <a class="is-flex" href="#Parallel">
+        <span class="has-mr-6">2.2.2</span>
+        <span>Parallel</span>
+        </a></li></ul></li><li>
+        <a class="is-flex" href="#唯一网络-ID">
+        <span class="has-mr-6">2.3</span>
+        <span>唯一网络 ID</span>
+        </a></li><li>
+        <a class="is-flex" href="#稳定存储">
+        <span class="has-mr-6">2.4</span>
+        <span>稳定存储</span>
+        </a></li><li>
+        <a class="is-flex" href="#发布最佳实践-1">
+        <span class="has-mr-6">2.5</span>
+        <span>发布最佳实践</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#滚动发布-1">
+        <span class="has-mr-6">2.5.1</span>
+        <span>滚动发布</span>
+        </a></li><li>
+        <a class="is-flex" href="#蓝绿发布-1">
+        <span class="has-mr-6">2.5.2</span>
+        <span>蓝绿发布</span>
+        </a></li><li>
+        <a class="is-flex" href="#灰度／金丝雀发布-1">
+        <span class="has-mr-6">2.5.3</span>
+        <span>灰度／金丝雀发布</span>
+        </a></li></ul></li></ul></li><li>
+        <a class="is-flex" href="#Replication-Controller-（官方已不推荐使用）">
+        <span class="has-mr-6">3</span>
+        <span>Replication Controller （官方已不推荐使用）</span>
+        </a></li><li>
+        <a class="is-flex" href="#参考">
+        <span class="has-mr-6">4</span>
+        <span>参考</span>
+        </a></li></ul>
+        </div>
     </div>
+</div>
+
     
-</section>
+        
+<div class="card widget">
+    <div class="card-content">
+        <h3 class="menu-label">
+            Recent
+        </h3>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T13:42:51.000Z">2019-05-23</time></div>
+                    <a href="/hexo-blog/20190523/HTC-刷机备忘/" class="has-link-black-ter is-size-6">HTC 刷机备忘</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T13:01:16.000Z">2019-05-23</time></div>
+                    <a href="/hexo-blog/20190523/二叉树两个节点之间的最大距离/" class="has-link-black-ter is-size-6">二叉树两个节点之间的最大距离</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T11:11:28.000Z">2019-05-23</time></div>
+                    <a href="/hexo-blog/20190523/有序数组的不同绝对值个数/" class="has-link-black-ter is-size-6">有序数组的不同绝对值个数</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-22T06:13:02.000Z">2019-05-22</time></div>
+                    <a href="/hexo-blog/20190522/从零开始实现一个-terraform-plugin/" class="has-link-black-ter is-size-6">从零开始实现一个 terraform plugin</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-01-07T07:22:00.000Z">2019-01-07</time></div>
+                    <a href="/hexo-blog/20190107/使用-Devstack-搭建-Openstack-集群/" class="has-link-black-ter is-size-6">使用 Devstack 搭建 Openstack 集群</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+    </div>
+</div>
+
+    
+        <div class="card widget">
+    <div class="card-content">
+        <div class="menu">
+        <h3 class="menu-label">
+            Archives
+        </h3>
+        <ul class="menu-list">
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2019/05/">
+                <span class="level-start">
+                    <span class="level-item">May 2019</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">4</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2019/01/">
+                <span class="level-start">
+                    <span class="level-item">January 2019</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/11/">
+                <span class="level-start">
+                    <span class="level-item">November 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/07/">
+                <span class="level-start">
+                    <span class="level-item">July 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/04/">
+                <span class="level-start">
+                    <span class="level-item">April 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/03/">
+                <span class="level-start">
+                    <span class="level-item">March 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/01/">
+                <span class="level-start">
+                    <span class="level-item">January 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2017/12/">
+                <span class="level-start">
+                    <span class="level-item">December 2017</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2017/10/">
+                <span class="level-start">
+                    <span class="level-item">October 2017</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2017/09/">
+                <span class="level-start">
+                    <span class="level-item">September 2017</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2015/07/">
+                <span class="level-start">
+                    <span class="level-item">July 2015</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2015/04/">
+                <span class="level-start">
+                    <span class="level-item">April 2015</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/09/">
+                <span class="level-start">
+                    <span class="level-item">September 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/08/">
+                <span class="level-start">
+                    <span class="level-item">August 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/05/">
+                <span class="level-start">
+                    <span class="level-item">May 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/04/">
+                <span class="level-start">
+                    <span class="level-item">April 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">4</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/03/">
+                <span class="level-start">
+                    <span class="level-item">March 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">2</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/10/">
+                <span class="level-start">
+                    <span class="level-item">October 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">3</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/09/">
+                <span class="level-start">
+                    <span class="level-item">September 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/08/">
+                <span class="level-start">
+                    <span class="level-item">August 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/07/">
+                <span class="level-start">
+                    <span class="level-item">July 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/06/">
+                <span class="level-start">
+                    <span class="level-item">June 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/02/">
+                <span class="level-start">
+                    <span class="level-item">February 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        </ul>
+        </div>
+    </div>
+</div>
+    
+        <div class="card widget">
+    <div class="card-content">
+        <div class="menu">
+            <h3 class="menu-label">
+                Tags
+            </h3>
+            <div class="field is-grouped is-grouped-multiline">
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Android/">
+                        <span class="tag">Android</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Fedora/">
+                        <span class="tag">Fedora</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Golang/">
+                        <span class="tag">Golang</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/HTC/">
+                        <span class="tag">HTC</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/K8S/">
+                        <span class="tag">K8S</span>
+                        <span class="tag is-grey">6</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Kubernetes/">
+                        <span class="tag">Kubernetes</span>
+                        <span class="tag is-grey">6</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Linux/">
+                        <span class="tag">Linux</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Openstack/">
+                        <span class="tag">Openstack</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Prometheus/">
+                        <span class="tag">Prometheus</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Python/">
+                        <span class="tag">Python</span>
+                        <span class="tag is-grey">9</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/etcd/">
+                        <span class="tag">etcd</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/terraform/">
+                        <span class="tag">terraform</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/主板/">
+                        <span class="tag">主板</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/云计算/">
+                        <span class="tag">云计算</span>
+                        <span class="tag is-grey">5</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/刷机/">
+                        <span class="tag">刷机</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/原创/">
+                        <span class="tag">原创</span>
+                        <span class="tag is-grey">30</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/图像处理/">
+                        <span class="tag">图像处理</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/多线程/">
+                        <span class="tag">多线程</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/安卓/">
+                        <span class="tag">安卓</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/操作系统/">
+                        <span class="tag">操作系统</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/游戏/">
+                        <span class="tag">游戏</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/爬虫/">
+                        <span class="tag">爬虫</span>
+                        <span class="tag is-grey">4</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/硬件/">
+                        <span class="tag">硬件</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/算法/">
+                        <span class="tag">算法</span>
+                        <span class="tag is-grey">5</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/维修/">
+                        <span class="tag">维修</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/网络/">
+                        <span class="tag">网络</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/蚁群算法/">
+                        <span class="tag">蚁群算法</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/转载/">
+                        <span class="tag">转载</span>
+                        <span class="tag is-grey">2</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/运维/">
+                        <span class="tag">运维</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/连连看/">
+                        <span class="tag">连连看</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/黑客技术/">
+                        <span class="tag">黑客技术</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+    
+    
+</div>
+
+            </div>
+        </div>
+    </section>
+    <footer class="footer">
+    <div class="container">
+        <div class="level">
+            <div class="level-start has-text-centered-mobile">
+                <a class="footer-logo is-block has-mb-6" href="/hexo-blog/">
+                
+                    <img src="/hexo-blog/images/logo.svg" alt="Kubernetes 服务灰度升级最佳实践" height="28">
+                
+                </a>
+                <p class="is-size-7">
+                &copy; 2019 whypro&nbsp;
+                Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> & <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a>
+                
+                </p>
+            </div>
+            <div class="level-end">
+            
+                <div class="field has-addons is-flex-center-mobile has-mt-5-mobile is-flex-wrap is-flex-middle">
+                
+                
+                <p class="control">
+                    <a class="button is-white is-large" target="_blank" title="GitHub" href="https://github.com/whypro">
+                        
+                        <i class="fab fa-github"></i>
+                        
+                    </a>
+                </p>
+                
+                </div>
+            
+            </div>
+        </div>
+    </div>
+</footer>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.22.2/min/moment-with-locales.min.js"></script>
+<script>moment.locale("en");</script>
 
 
-	</div> <!-- col-md-9/col-md-12 -->
-		
-	
-	<div id="side_meta">
-		<div class="col-md-3" id="post_meta"> 
-
-	<!-- date -->
-	
-	<div class="meta-widget">
-	<i class="fa fa-clock-o"></i>
-	2018-03-01 
-	</div>
-	
-
-	<!-- categories -->
+    
+    
+    
+    <script src="/hexo-blog/js/animation.js"></script>
     
 
-	<!-- tags -->
-	
-	<div class="meta-widget">
-	<a data-toggle="collapse" data-target="#tags"><i class="fa fa-tags"></i></a>		  
-    <ul id="tags" class="tag_box list-unstyled collapse in">	  
-	    
-  <li><a href="/hexo-blog/tags/原创/">原创<span>30</span></a></li> <li><a href="/hexo-blog/tags/Kubernetes/">Kubernetes<span>6</span></a></li> <li><a href="/hexo-blog/tags/K8S/">K8S<span>6</span></a></li>
-    </ul>
-	</div>
-		
+    
+    
+    
+    <script src="https://cdn.jsdelivr.net/npm/lightgallery@1.6.8/dist/js/lightgallery.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js" defer></script>
+    <script src="/hexo-blog/js/gallery.js" defer></script>
+    
 
-	<!-- toc -->
-	<div class="meta-widget">
-	
-	   <a data-toggle="collapse" data-target="#toc"><i class="fa fa-bars"></i></a>
-	   <div id="toc" class="toc collapse in">
-		   <span class="toc-title">Contents</span>
-			<ol class="toc-article"><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#Deployment"><span class="toc-article-text">Deployment</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#升级机制"><span class="toc-article-text">升级机制</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#Rollout"><span class="toc-article-text">Rollout</span></a></li><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#Rollover"><span class="toc-article-text">Rollover</span></a></li><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#Rollback"><span class="toc-article-text">Rollback</span></a></li><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#Pause-Resume"><span class="toc-article-text">Pause/Resume</span></a></li></ol></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#扩缩容机制"><span class="toc-article-text">扩缩容机制</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#手动扩缩容"><span class="toc-article-text">手动扩缩容</span></a></li><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#自动扩缩容"><span class="toc-article-text">自动扩缩容</span></a></li></ol></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#发布最佳实践"><span class="toc-article-text">发布最佳实践</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#滚动发布"><span class="toc-article-text">滚动发布</span></a></li><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#灰度／金丝雀发布"><span class="toc-article-text">灰度／金丝雀发布</span></a></li><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#蓝绿发布"><span class="toc-article-text">蓝绿发布</span></a></li></ol></li></ol></li><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#StatefulSet"><span class="toc-article-text">StatefulSet</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#升级机制-1"><span class="toc-article-text">升级机制</span></a></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#扩缩容机制-1"><span class="toc-article-text">扩缩容机制</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#OrderedReady"><span class="toc-article-text">OrderedReady</span></a></li><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#Parallel"><span class="toc-article-text">Parallel</span></a></li></ol></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#唯一网络-ID"><span class="toc-article-text">唯一网络 ID</span></a></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#稳定存储"><span class="toc-article-text">稳定存储</span></a></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#发布最佳实践-1"><span class="toc-article-text">发布最佳实践</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#滚动发布-1"><span class="toc-article-text">滚动发布</span></a></li><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#蓝绿发布-1"><span class="toc-article-text">蓝绿发布</span></a></li><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#灰度／金丝雀发布-1"><span class="toc-article-text">灰度／金丝雀发布</span></a></li></ol></li></ol></li><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#Replication-Controller-（官方已不推荐使用）"><span class="toc-article-text">Replication Controller （官方已不推荐使用）</span></a></li><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#参考"><span class="toc-article-text">参考</span></a></li></ol>
-		</div>
-	
-	</div>
-	
-    <hr>
-	
-</div><!-- col-md-3 -->
+    
+    
 
-	</div>
-		
-
-</div><!-- row -->
-
-<script type="text/javascript">
-var disqus_shortname = 'hexo-blog-everlasting';
-(function(){
-  var dsq = document.createElement('script');
-  dsq.type = 'text/javascript';
-  dsq.async = true;
-  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
-  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-}());
+<div id="outdated">
+    <h6>Your browser is out-of-date!</h6>
+    <p>Update your browser to view this website correctly. <a id="btnUpdateBrowser" href="http://outdatedbrowser.com/">Update
+            my browser now </a></p>
+    <p class="last"><a href="#" id="btnCloseUpdateBrowser" title="Close">&times;</a></p>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/outdatedbrowser@1.1.5/outdatedbrowser/outdatedbrowser.min.js" defer></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        outdatedBrowser({
+            bgColor: '#f25648',
+            color: '#ffffff',
+            lowerThan: 'flex'
+        });
+    });
 </script>
 
 
+    
+    
+<script src="https://cdn.jsdelivr.net/npm/mathjax@2.7.5/unpacked/MathJax.js?config=TeX-MML-AM_CHTML" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    MathJax.Hub.Config({
+        'HTML-CSS': {
+            matchFontHeight: false
+        },
+        SVG: {
+            matchFontHeight: false
+        },
+        CommonHTML: {
+            matchFontHeight: false
+        },
+        tex2jax: {
+            inlineMath: [
+                ['$','$'],
+                ['\\(','\\)']
+            ]
+        }
+    });
+});
+</script>
 
-	</div>
-  </div>
-  <div class="container-narrow">
-  <footer> <p>
-  &copy; 2019 whypro
-  
-      with help from <a href="http://hexo.io/" target="_blank">Hexo</a>,<a href="http://github.com/wzpan/hexo-theme-freemind/">Freemind</a>,<a href="http://getbootstrap.com/" target="_blank">Twitter Bootstrap</a> and <a href="http://getbootstrap.com/" target="_blank">BOOTSTRA.386</a>. 
-     <br> Theme by <a href="http://github.com/wzpan/hexo-theme-freemind/">Freemind.386</a>.    
-</p>
- </footer>
-</div> <!-- container-narrow -->
-  
+    
+    
 
-
-  
-<a id="gotop" href="#">   
-  <span>⬆︎TOP</span>
+<a id="back-to-top" title="Back to Top" href="javascript:;">
+    <i class="fas fa-chevron-up"></i>
 </a>
-
-<script src="/hexo-blog/js/jquery.imagesloaded.min.js"></script>
-<script src="/hexo-blog/js/gallery.js"></script>
-<script src="/hexo-blog/js/bootstrap.min.js"></script>
-<script src="/hexo-blog/js/main.js"></script>
-<script src="/hexo-blog/js/search.js"></script> 
+<script src="/hexo-blog/js/back-to-top.js" defer></script>
 
 
-<link rel="stylesheet" href="/hexo-blog/fancybox/jquery.fancybox.css" media="screen" type="text/css">
-<script src="/hexo-blog/fancybox/jquery.fancybox.pack.js"></script>
-<script type="text/javascript">
-(function($){
-  $('.fancybox').fancybox();
-})(jQuery);
+    
+    
+
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+    <script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.4/dist/clipboard.min.js" defer></script>
+    <script src="/hexo-blog/js/clipboard.js" defer></script>
+    
+
+    
+    
+    
+
+
+<script src="/hexo-blog/js/main.js" defer></script>
+
+    
+    <div class="searchbox ins-search">
+    <div class="searchbox-container ins-search-container">
+        <div class="searchbox-input-wrapper">
+            <input type="text" class="searchbox-input ins-search-input" placeholder="Type something...">
+            <span class="searchbox-close ins-close ins-selectable"><i class="fa fa-times-circle"></i></span>
+        </div>
+        <div class="searchbox-result-wrapper ins-section-wrapper">
+            <div class="ins-section-container"></div>
+        </div>
+    </div>
+</div>
+<script>
+    (function (window) {
+        var INSIGHT_CONFIG = {
+            TRANSLATION: {
+                POSTS: 'Posts',
+                PAGES: 'Pages',
+                CATEGORIES: 'Categories',
+                TAGS: 'Tags',
+                UNTITLED: '(Untitled)',
+            },
+            CONTENT_URL: '/hexo-blog/content.json',
+        };
+        window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+    })(window);
 </script>
-
-
-
-   <script type="text/javascript">      
-     var search_path = "search.xml";
-	 if (search_path.length == 0) {
-	 	search_path = "search.xml";
-	 }
-	 var path = "/hexo-blog/" + search_path;
-     searchFunc(path, 'local-search-input', 'local-search-result');
-   </script>
-
+<script src="/hexo-blog/js/insight.js" defer></script>
+<link rel="stylesheet" href="/hexo-blog/css/search.css">
+<link rel="stylesheet" href="/hexo-blog/css/insight.css">
+    
 </body>
-   </html>
+</html>

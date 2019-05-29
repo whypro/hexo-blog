@@ -1,132 +1,184 @@
-<!DOCTYPE HTML>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head><meta name="generator" content="Hexo 3.8.0">
-  <meta charset="utf-8">
-  <meta http-equiv="pragma" content="no-cache">
-  <meta http-equiv="cache-control" content="no-cache">
-  <meta http-equiv="expires" content="0">
-  
-  <title>从头编写一款时间序列数据库 | Everlasting</title>
-  <meta name="author" content="whypro">
-  
-  <meta name="description" content="本文转自 从头编写一款时间序列数据库 （翻译：Colstuwjx），请支持原作者。
-
-我从事监控方面的工作。尤其是专注在 Prometheus，一款内置了自己定制的时间序列数据库的监控系统，以及它和 Kubernetes 的集成工作。
-从很多方面来说，Kubernetes 表现出了一切 Prometheus 专门设计的东西。它使得持续部署，自动扩缩，以及高度动态环境的其他功能更易于实现。它的查询语言和操作模型，还有许多其他概念方面的决策使得 Prometheus 尤其适合这样的环境。然而，如果被监控的工作负载变得更加显著动态的话，这也会给监控系统本身带来新的压力。基于这一点的考虑，与其再次回顾 Prometheus 已经很好解决的问题，还不如专注于在这样一个高度动态或短生命周期服务的环境里提高它的性能。
-Prometheus 的存储层在历史上有着惊人的性能表现，一个单台服务器每秒可以摄取多达 100 万个采样，数百万个时间序列，同时仅占用令人惊叹的少量磁盘空间。尽管当前的存储已经给我们提供了不错的服务，笔者构思了一个新设计的存储子系统用来纠正现有解决方案的一些短板，并且可以用来配备支撑下一代的集群规模。">
-  
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-
-  <meta property="og:title" content="从头编写一款时间序列数据库">
-  <meta property="og:site_name" content="Everlasting">
-
-  
-    <meta property="og:image" content>
-  
-
-  
-    <link rel="alternative" href="/hexo-blog/atom.xml" title="Everlasting" type="application/atom+xml">
-  
-  
-    <link href="/hexo-blog/favicon.png" rel="icon">
-  
-  
-  <link rel="stylesheet" href="/hexo-blog/css/bootstrap.min.css" media="screen" type="text/css">
-  <link rel="stylesheet" href="/hexo-blog/css/font-awesome.css" media="screen" type="text/css">
-  <link rel="stylesheet" href="/hexo-blog/css/style.css" media="screen" type="text/css">
-  <link rel="stylesheet" href="/hexo-blog/css/responsive.css" media="screen" type="text/css">
-  <link rel="stylesheet" href="/hexo-blog/css/highlight.css" media="screen" type="text/css">
-  <link rel="stylesheet" href="/hexo-blog/css/google-fonts.css" media="screen" type="text/css">
-  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
-
-  <script src="/hexo-blog/js/jquery-2.0.3.min.js"></script>
-
-  <!-- analytics -->
-  
+    <meta charset="utf-8">
+<title>从头编写一款时间序列数据库 - EVERLASTING</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
 
+
+    <meta name="description" content="本文转自 从头编写一款时间序列数据库 （翻译：Colstuwjx），请支持原作者。  我从事监控方面的工作。尤其是专注在 Prometheus，一款内置了自己定制的时间序列数据库的监控系统，以及它和 Kubernetes 的集成工作。 从很多方面来说，Kubernetes 表现出了一切 Prometheus 专门设计的东西。它使得持续部署，自动扩缩，以及高度动态环境的其他功能更易于实现。它的查询">
+<meta name="keywords" content="转载,Kubernetes,K8S,Prometheus">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从头编写一款时间序列数据库">
+<meta property="og:url" content="http://whypro.github.io/hexo-blog/20180110/从头编写一款时间序列数据库/index.html">
+<meta property="og:site_name" content="EVERLASTING">
+<meta property="og:description" content="本文转自 从头编写一款时间序列数据库 （翻译：Colstuwjx），请支持原作者。  我从事监控方面的工作。尤其是专注在 Prometheus，一款内置了自己定制的时间序列数据库的监控系统，以及它和 Kubernetes 的集成工作。 从很多方面来说，Kubernetes 表现出了一切 Prometheus 专门设计的东西。它使得持续部署，自动扩缩，以及高度动态环境的其他功能更易于实现。它的查询">
+<meta property="og:locale" content="en">
+<meta property="og:image" content="http://whypro.github.io/hexo-blog/images/og_image.png">
+<meta property="og:updated_time" content="2019-05-21T16:03:20.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="从头编写一款时间序列数据库">
+<meta name="twitter:description" content="本文转自 从头编写一款时间序列数据库 （翻译：Colstuwjx），请支持原作者。  我从事监控方面的工作。尤其是专注在 Prometheus，一款内置了自己定制的时间序列数据库的监控系统，以及它和 Kubernetes 的集成工作。 从很多方面来说，Kubernetes 表现出了一切 Prometheus 专门设计的东西。它使得持续部署，自动扩缩，以及高度动态环境的其他功能更易于实现。它的查询">
+<meta name="twitter:image" content="http://whypro.github.io/hexo-blog/images/og_image.png">
+
+
+
+
+
+
+
+<link rel="icon" href="/hexo-blog/images/favicon.svg">
+
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.7.2/css/bulma.css">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Ubuntu:400,600|Source+Code+Pro">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@9.12.0/styles/atom-one-light.css">
+
+
+    
+    
+    
+    <style>body>.footer,body>.navbar,body>.section{opacity:0}</style>
+    
+
+    
+    
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@1.6.8/dist/css/lightgallery.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/css/justifiedGallery.min.css">
+    
+
+    
+    
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/outdatedbrowser@1.1.5/outdatedbrowser/outdatedbrowser.min.css">
+
+
+    
+    
+    
+    
+
+<link rel="stylesheet" href="/hexo-blog/css/back-to-top.css">
+
+
+    
+    
+
+    
+    
 <script>
 var _hmt = _hmt || [];
 (function() {
-  var hm = document.createElement("script");
-  hm.src = "//hm.baidu.com/hm.js?17e1c6a0010d7be7e49ae6d2c2e7b817";
-  var s = document.getElementsByTagName("script")[0]; 
-  s.parentNode.insertBefore(hm, s);
+    var hm = document.createElement("script");
+    hm.src = "//hm.baidu.com/hm.js?17e1c6a0010d7be7e49ae6d2c2e7b817";
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(hm, s);
 })();
 </script>
 
+    
+    
 
+    
+    
+<link rel="stylesheet" href="/hexo-blog/css/progressbar.css">
+<script src="https://cdn.jsdelivr.net/npm/pace-js@1.0.2/pace.min.js"></script>
+
+    
+    
+    
+
+    
+    
+    
+
+
+<link rel="stylesheet" href="/hexo-blog/css/style.css">
 </head>
-</html>
- <body>  
-  <nav id="main-nav" class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+<body class="is-3-column">
+    <nav class="navbar navbar-main">
     <div class="container">
-      <button type="button" class="navbar-header navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-		<span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
-	  <a class="navbar-brand" href="/hexo-blog/">Everlasting</a>
-      <div class="collapse navbar-collapse nav-menu">
-		<ul class="nav navbar-nav">
-		  
-		  <li>
-			<a href="/hexo-blog/archives" title="All the articles.">
-			  <i class="fa fa-archive"></i>Archives
-			</a>
-		  </li>
-		  
-		  <li>
-			<a href="/hexo-blog/categories" title="All the categories.">
-			  <i class="fa fa-folder"></i>Categories
-			</a>
-		  </li>
-		  
-		  <li>
-			<a href="/hexo-blog/tags" title="All the tags.">
-			  <i class="fa fa-tags"></i>Tags
-			</a>
-		  </li>
-		  
-		  <li>
-			<a href="/hexo-blog/about.html" title="About me.">
-			  <i class="fa fa-user"></i>About
-			</a>
-		  </li>
-		  
-		</ul>
-      </div>
-    </div> <!-- container -->
+        <div class="navbar-brand is-flex-center">
+            <a class="navbar-item navbar-logo" href="/hexo-blog/">
+            
+                <img src="/hexo-blog/images/logo.svg" alt="从头编写一款时间序列数据库" height="28">
+            
+            </a>
+        </div>
+        <div class="navbar-menu">
+            
+            <div class="navbar-start">
+                
+                <a class="navbar-item" href="/hexo-blog/">Home</a>
+                
+                <a class="navbar-item" href="/hexo-blog/archives">Archives</a>
+                
+                <a class="navbar-item" href="/hexo-blog/categories">Categories</a>
+                
+                <a class="navbar-item" href="/hexo-blog/tags">Tags</a>
+                
+                <a class="navbar-item" href="/hexo-blog/about.html">About</a>
+                
+            </div>
+            
+            <div class="navbar-end">
+                
+                    
+                    
+                    <a class="navbar-item" target="_blank" title="GitHub" href="https://github.com/whypro">
+                        
+                        <i class="fab fa-github"></i>
+                        
+                    </a>
+                    
+                
+                
+                <a class="navbar-item is-hidden-tablet catalogue" title="Catalogue" href="javascript:;">
+                    <i class="fas fa-list-ul"></i>
+                </a>
+                
+                
+                <a class="navbar-item search" title="Search" href="javascript:;">
+                    <i class="fas fa-search"></i>
+                </a>
+                
+            </div>
+        </div>
+    </div>
 </nav>
-<div class="clearfix"></div>
-
-  <div class="container">
-  	<div class="content">
-    	 
-
-
-	
-		<div class="page-header">
-			<h1> 从头编写一款时间序列数据库</h1>
-		</div>
-	
-
-
-
-<div class="row post">
-	<!-- cols -->
-	
-	<div id="top_meta"></div>
-	<div class="col-md-9">
-	
-
-	<!-- content -->
-	<div class="mypage">		
-	  		
-
-	  <blockquote>
+    
+    <section class="section">
+        <div class="container">
+            <div class="columns">
+                <div class="column is-8-tablet is-8-desktop is-6-widescreen has-order-2 column-main"><div class="card">
+    
+    <div class="card-content article ">
+        
+        <div class="level article-meta is-size-7 is-uppercase is-mobile is-overflow-x-auto">
+            <div class="level-left">
+                <time class="level-item has-text-grey" datetime="2018-01-10T14:01:52.000Z">2018-01-10</time>
+                
+                
+                <span class="level-item has-text-grey">
+                    
+                    
+                    2 hours read (About 14663 words)
+                </span>
+                
+                
+            </div>
+        </div>
+        
+        <h1 class="title is-size-3 is-size-4-mobile has-text-weight-normal">
+            
+                从头编写一款时间序列数据库
+            
+        </h1>
+        <div class="content">
+            <blockquote>
 <p>本文转自 <a href="http://dockone.io/article/2300" target="_blank" rel="noopener">从头编写一款时间序列数据库</a> （翻译：Colstuwjx），请支持原作者。</p>
 </blockquote>
 <p>我从事监控方面的工作。尤其是专注在 <a href="https://prometheus.io/" target="_blank" rel="noopener">Prometheus</a>，一款内置了自己定制的时间序列数据库的监控系统，以及它和 <a href="https://kubernetes.io/" target="_blank" rel="noopener">Kubernetes</a> 的集成工作。</p>
@@ -138,16 +190,16 @@ var _hmt = _hmt || [];
 </blockquote>
 <h2 id="问题，难题，问题域"><a href="#问题，难题，问题域" class="headerlink" title="问题，难题，问题域"></a>问题，难题，问题域</h2><p>首先，快速概括一下我们试图完成的任务以及这里面暴露出的关键问题。针对每一点，我们会先看一看 Prometheus 目前的做法，它在哪些地方做的出色，以及我们旨在通过新的设计想解决哪些问题。</p>
 <h3 id="时间序列数据"><a href="#时间序列数据" class="headerlink" title="时间序列数据"></a>时间序列数据</h3><p>我们有一个根据时间采集数据点的系统。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">identifier -&gt; (t0, v0), (t1, v1), (t2, v2), (t3, v3), ....</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">identifier -&gt; (t0, v0), (t1, v1), (t2, v2), (t3, v3), ....</span><br></pre></td></tr></table></figure>
 <p>每个数据点都是一个由时间戳和值组成的元组。为了达成监控的目的，时间戳是一个整数，值则可以是任意数字。经验来看，一个64位的浮点数往往能够很好地展现计数器（counter）和测量（gauge）的值，因此我们也不例外。一个时间序列是一组时间上严格单调递增的数据点序列，它可以通过一个标识符来寻址。我们的标识符便是一个度量（metric）名带上一个多维标签的字典。多维标签会将单个度量的测量空间分区。每个度量名加上一串唯一的标签便组成了它自己的时间序列（time series），它会有一个与之关联的值序列流。下面是一组典型的序列标识符，它是度量请求计数的一部分：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">requests_total&#123;path=&quot;/status&quot;, method=&quot;GET&quot;, instance=&quot;10.0.0.1:80&quot;&#125;</span><br><span class="line">requests_total&#123;path=&quot;/status&quot;, method=&quot;POST&quot;, instance=&quot;10.0.0.3:80&quot;&#125;</span><br><span class="line">requests_total&#123;path=&quot;/&quot;, method=&quot;GET&quot;, instance=&quot;10.0.0.2:80&quot;&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">requests_total&#123;path=&quot;/status&quot;, method=&quot;GET&quot;, instance=&quot;10.0.0.1:80&quot;&#125;</span><br><span class="line">requests_total&#123;path=&quot;/status&quot;, method=&quot;POST&quot;, instance=&quot;10.0.0.3:80&quot;&#125;</span><br><span class="line">requests_total&#123;path=&quot;/&quot;, method=&quot;GET&quot;, instance=&quot;10.0.0.2:80&quot;&#125;</span><br></pre></td></tr></table></figure>
 <p>让我们快速简化一下这个表达形式：我们不妨将一个度量名视为另一种标签维度 - 在我们的场景里便是 <code>__name__</code>。在查询级别上，它可能会被特殊对待，但是它并不会关注我们采用何种方式来存放它，这一点我们将在后面看到。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&#123;__name__=&quot;requests_total&quot;, path=&quot;/status&quot;, method=&quot;GET&quot;, instance=&quot;10.0.0.1:80&quot;&#125;</span><br><span class="line">&#123;__name__=&quot;requests_total&quot;, path=&quot;/status&quot;, method=&quot;POST&quot;, instance=&quot;10.0.0.3:80&quot;&#125;</span><br><span class="line">&#123;__name__=&quot;requests_total&quot;, path=&quot;/&quot;, method=&quot;GET&quot;, instance=&quot;10.0.0.2:80&quot;&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&#123;__name__=&quot;requests_total&quot;, path=&quot;/status&quot;, method=&quot;GET&quot;, instance=&quot;10.0.0.1:80&quot;&#125;</span><br><span class="line">&#123;__name__=&quot;requests_total&quot;, path=&quot;/status&quot;, method=&quot;POST&quot;, instance=&quot;10.0.0.3:80&quot;&#125;</span><br><span class="line">&#123;__name__=&quot;requests_total&quot;, path=&quot;/&quot;, method=&quot;GET&quot;, instance=&quot;10.0.0.2:80&quot;&#125;</span><br></pre></td></tr></table></figure>
 <p>当查询时间序列数据时，我们想通过指定标签来选择。最简单的例子莫过于 <code>{__name__=&quot;requests_total&quot;}</code> 会选出所有属于 <code>requests_total</code> 度量的序列。针对所有被选中的序列来说，我们会在一个指定的时间窗口里检索出对应的数据点。</p>
 <p>而在更复杂的查询里，我们可能希望同时选择满足多个标签选择器的序列，并且就表达形式来说也会存在比等于更复杂的条件。比如，取反（<code>method!=&quot;GET&quot;</code>）或者正则表达式匹配（<code>method=~&quot;PUT|POST&quot;</code>）。</p>
 <p>这大体上决定了所需存储的数据以及它们该如何被调用。</p>
 <h3 id="横轴和纵轴"><a href="#横轴和纵轴" class="headerlink" title="横轴和纵轴"></a>横轴和纵轴</h3><p>在一个简化的视图中，所有数据点都可以在一个二维平面上分布。横轴代表时间，而序列标识符的空间遍及整个纵轴。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">series</span><br><span class="line">  ^   </span><br><span class="line">  │   . . . . . . . . . . . . . . . . .   . . . . .   &#123;__name__=&quot;request_total&quot;, method=&quot;GET&quot;&#125;</span><br><span class="line">  │     . . . . . . . . . . . . . . . . . . . . . .   &#123;__name__=&quot;request_total&quot;, method=&quot;POST&quot;&#125;</span><br><span class="line">  │         . . . . . . .</span><br><span class="line">  │       . . .     . . . . . . . . . . . . . . . .                  ... </span><br><span class="line">  │     . . . . . . . . . . . . . . . . .   . . . .   </span><br><span class="line">  │     . . . . . . . . . .   . . . . . . . . . . .   &#123;__name__=&quot;errors_total&quot;, method=&quot;POST&quot;&#125;</span><br><span class="line">  │           . . .   . . . . . . . . .   . . . . .   &#123;__name__=&quot;errors_total&quot;, method=&quot;GET&quot;&#125;</span><br><span class="line">  │         . . . . . . . . .       . . . . .</span><br><span class="line">  │       . . .     . . . . . . . . . . . . . . . .                  ... </span><br><span class="line">  │     . . . . . . . . . . . . . . . .   . . . . </span><br><span class="line">  v</span><br><span class="line">    &lt;-------------------- time ---------------------&gt;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">series</span><br><span class="line">  ^   </span><br><span class="line">  │   . . . . . . . . . . . . . . . . .   . . . . .   &#123;__name__=&quot;request_total&quot;, method=&quot;GET&quot;&#125;</span><br><span class="line">  │     . . . . . . . . . . . . . . . . . . . . . .   &#123;__name__=&quot;request_total&quot;, method=&quot;POST&quot;&#125;</span><br><span class="line">  │         . . . . . . .</span><br><span class="line">  │       . . .     . . . . . . . . . . . . . . . .                  ... </span><br><span class="line">  │     . . . . . . . . . . . . . . . . .   . . . .   </span><br><span class="line">  │     . . . . . . . . . .   . . . . . . . . . . .   &#123;__name__=&quot;errors_total&quot;, method=&quot;POST&quot;&#125;</span><br><span class="line">  │           . . .   . . . . . . . . .   . . . . .   &#123;__name__=&quot;errors_total&quot;, method=&quot;GET&quot;&#125;</span><br><span class="line">  │         . . . . . . . . .       . . . . .</span><br><span class="line">  │       . . .     . . . . . . . . . . . . . . . .                  ... </span><br><span class="line">  │     . . . . . . . . . . . . . . . .   . . . . </span><br><span class="line">  v</span><br><span class="line">    &lt;-------------------- time ---------------------&gt;</span><br></pre></td></tr></table></figure>
 <p>Prometheus 通过定期抓取一组时间序列的当前值来检索得到数据点。这样一个我们检索批次的实体被称作一个目标（target）。由于每个目标的样本数据都是单独抓取的，因此写入模式是完全垂直并且高度并发的。这里提供一些衡量尺度：一个单个的Prometheus实例会从成千上万的目标采集数据点，每个目标可以暴露出数百上千个不同的时间序列。</p>
 <p>就每秒采集数百万个数据点的规模而言，批量写入是一个不可调和的性能需求。分散地写入单个数据点到磁盘的话又会是一个非常缓慢的过程。因此，我们想要实现的是按顺序写入更大的数据块。对于机械的旋转磁盘而言这样做并不出奇，因为它们的头会一直物理地移动到不同的区块。虽然 SSD 以快速地随机写入性能而闻名，但是实际上它们却不能修改单个字节，而只能写入 4KiB 或更大的的页。这意味着写一个 16 字节的样本同写一个完整的 4KiB 页没什么两样。这种行为即是所谓的<a href="https://en.wikipedia.org/wiki/Write_amplification" target="_blank" rel="noopener">写入放大</a>的一部分，作为一个“额外红利”，它会耗损你的 SSD —— 因此它不仅仅只是会变慢而已，还会在几天或者几周内完全毁掉你的硬件。关于这个问题的更详细信息，系列博客”<a href="http://codecapsule.com/2014/02/12/coding-for-ssds-part-1-introduction-and-table-of-contents/" target="_blank" rel="noopener">针对 SSD 编程</a>“系列会是一个不错的资源。我们不妨考虑一下这里面的主要关键点：顺序和批量写入是旋转磁盘和 SSD 的理想写入模式。 这是一个应该遵循的简单规则。</p>
 <p>时间序列数据库的查询模型跟写模型相比，更是有明显不同的区别。我们可以对一个单个序列查询一个单个的数据点，在 10000 个序列里查询一个单个的数据点，在一个单个序列里查询几周的数据点，甚至在 10000 个序列里查询几周的数据点，等等。因此在我们的二维平面上，查询既不是完全垂直的，也不是水平的，而是二者的矩形组合。<a href="https://prometheus.io/docs/practices/rules/" target="_blank" rel="noopener">记录规则</a>可以减轻已知的一些查询方面的问题，但是仍然不是临时查询（ad-hoc queries）的一个通用解决方案，这些查询也必须能很好的进行下去。</p>
@@ -155,7 +207,7 @@ var _hmt = _hmt || [];
 <p>因此，在理想情况下，相同序列的样本数据将会被顺序存储，这样一来我们便可以用尽可能少的读来扫描得到它们。 在上层，我们只需要知道这个序列可以访问的所有数据点的开始位置。</p>
 <p>在将收集的数据写入磁盘的理想模式和为服务的查询操作提供更显著有效的存储格式之间显然存在着强烈的冲突。这是我们的时间序列数据库要解决的根本问题。</p>
 <h4 id="当前的解决方案"><a href="#当前的解决方案" class="headerlink" title="当前的解决方案"></a>当前的解决方案</h4><p>是时候来看看 Prometheus 当前的存储是如何实现的，我们不妨叫它“V2”，它致力于解决这个问题。我们会为每个时间序列创建一个文件，它会按照时间顺序包含所有的样本数据。由于每隔几秒就把单个的样本数据添加到所有这些文件的成本不小，我们针对每个序列在内存里批量存放了 1KiB 的数据块，一旦它们填满了再把这些块添加到一个个的文件里。这一方案解决了很大一部分问题。写操作如今是分批次的，样本数据也是顺序存储的。它还能为我们提供一个令人难以置信的高效压缩格式，这是基于一个给定的样本相对于相同序列里前面的那些样本数据只有非常少量的变化这一属性而设计。Facebook 在它们的 Gorilla TSDB 的论文里描述了一种类似的基于块（Chunk）的存储方法，并且引入了一个压缩格式，将16个字节的样本减少到平均 1.37 字节。V2 存储使用了各种压缩格式，包括 Gorilla 的一个变种。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">  ┌──────────┬─────────┬─────────┬─────────┬─────────┐           series A</span><br><span class="line">  └──────────┴─────────┴─────────┴─────────┴─────────┘</span><br><span class="line">         ┌──────────┬─────────┬─────────┬─────────┬─────────┐    series B</span><br><span class="line">         └──────────┴─────────┴─────────┴─────────┴─────────┘ </span><br><span class="line">                             . . .</span><br><span class="line">┌──────────┬─────────┬─────────┬─────────┬─────────┬─────────┐   series XYZ</span><br><span class="line">└──────────┴─────────┴─────────┴─────────┴─────────┴─────────┘ </span><br><span class="line">  chunk 1    chunk 2   chunk 3     ...</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">  ┌──────────┬─────────┬─────────┬─────────┬─────────┐           series A</span><br><span class="line">  └──────────┴─────────┴─────────┴─────────┴─────────┘</span><br><span class="line">         ┌──────────┬─────────┬─────────┬─────────┬─────────┐    series B</span><br><span class="line">         └──────────┴─────────┴─────────┴─────────┴─────────┘ </span><br><span class="line">                             . . .</span><br><span class="line">┌──────────┬─────────┬─────────┬─────────┬─────────┬─────────┐   series XYZ</span><br><span class="line">└──────────┴─────────┴─────────┴─────────┴─────────┴─────────┘ </span><br><span class="line">  chunk 1    chunk 2   chunk 3     ...</span><br></pre></td></tr></table></figure>
 <p>尽管基于块的实现方案很棒，如何为每个序列维护一个单独的文件却也是V2存储引擎困扰的地方，这里面有几个原因：</p>
 <ul>
 <li><p>我们实际上需要维护的文件数量多于我们正在收集数据的时间序列数量。在“序列分流”一节会详解介绍到这点。由于产生了几百万个文件，不久的将来或者迟早有一天，我们的文件系统会出现 <a href="https://en.wikipedia.org/wiki/Inode" target="_blank" rel="noopener">inodes</a> 耗尽的情况。在这种情况下我们只能通过重新格式化磁盘来恢复，这样做可能带有侵入性和破坏性。通常我们都希望避免格式化磁盘，特别是需要适配某个单个应用时更是如此。</p>
@@ -173,7 +225,7 @@ var _hmt = _hmt || [];
 <p>一个时间序列对应一个文件这一概念是我们想要替换的。</p>
 <h3 id="序列分流-Series-Churn"><a href="#序列分流-Series-Churn" class="headerlink" title="序列分流 (Series Churn)"></a>序列分流 (Series Churn)</h3><p>在 Prometheus 的上下文里，我们使用术语“序列分流”来描述一组时间序列变得不活跃，即不再接收数据点，取而代之的是有一组新的活跃的序列出现。</p>
 <p>举个例子，由一个给定的微服务实例产出的所有序列各自都有一个标识它起源的“instance”标签。如果我们对该微服务完成了一次滚动更新然后将每个实例切换到了一个更新的版本的话，序列分流就产生了。在一个更加动态的环境里，这些事件可能会以小时的频率出现。像Kubernetes这样的集群编排系统允许应用程序不断地自动伸缩和频繁的滚动更新，它可能会创建出数万个新的应用程序实例，并且每天都会使用全新的时间序列。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">series</span><br><span class="line">  ^</span><br><span class="line">  │   . . . . . .</span><br><span class="line">  │   . . . . . .</span><br><span class="line">  │   . . . . . .</span><br><span class="line">  │               . . . . . . .</span><br><span class="line">  │               . . . . . . .</span><br><span class="line">  │               . . . . . . .</span><br><span class="line">  │                             . . . . . .</span><br><span class="line">  │                             . . . . . .</span><br><span class="line">  │                                         . . . . .</span><br><span class="line">  │                                         . . . . .</span><br><span class="line">  │                                         . . . . .</span><br><span class="line">  v</span><br><span class="line">    &lt;-------------------- time ---------------------&gt;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">series</span><br><span class="line">  ^</span><br><span class="line">  │   . . . . . .</span><br><span class="line">  │   . . . . . .</span><br><span class="line">  │   . . . . . .</span><br><span class="line">  │               . . . . . . .</span><br><span class="line">  │               . . . . . . .</span><br><span class="line">  │               . . . . . . .</span><br><span class="line">  │                             . . . . . .</span><br><span class="line">  │                             . . . . . .</span><br><span class="line">  │                                         . . . . .</span><br><span class="line">  │                                         . . . . .</span><br><span class="line">  │                                         . . . . .</span><br><span class="line">  v</span><br><span class="line">    &lt;-------------------- time ---------------------&gt;</span><br></pre></td></tr></table></figure>
 <p>因此，即便整个基础设施大体上保持不变，随着时间的推移，我们数据库里的时间序列数据量也会呈线性增长。 尽管 Prometheus 服务器很愿意去采集 1000 万个时间序列的数据，但是如果不得不在十亿个序列中查找数据的话，很明显查询性能会受到影响。</p>
 <h4 id="当前解决方案"><a href="#当前解决方案" class="headerlink" title="当前解决方案"></a>当前解决方案</h4><p>Prometheus当前 V2 版本的存储针对当前被存放的所有序列都有一个基于 LevelDB 的索引。它允许包含一个指定的标签对来查询序列，但是缺乏一个可扩展的方式以组合来自不同标签选择的结果。举个例子，用户可以有效地选出带有标签 <code>__name __ =&quot;requests_total&quot;</code> 的所有序列，但是选择所有满足 <code>instance=&quot;A&quot;</code> AND <code>__name __ =&quot;requests_total&quot;</code> 的序列则都有可扩展性的问题。我们稍后会重新审视为什么会造成这样的结果，要改善查询延迟的话要做哪些必要的调整。</p>
 <p>实际上这一问题正是触发要实现一个更好的存储系统的最初动力。Prometheus 需要一个改进的索引方法从数亿个时间序列里进行快速搜索。</p>
@@ -185,12 +237,12 @@ var _hmt = _hmt || [];
 <p>性能和资源使用这样的关键问题会直接引领我们做出存储格式方面的选择。我们必须为我们的数据找到一个正确的算法和磁盘布局以实现一个性能优良的存储层。</p>
 <p>这便是我直接迈向成功时走的捷径 —— 忽略之前经历过的头疼，无数失败的想法，数不尽的草图，眼泪，还有绝望。</p>
 <h3 id="V3-宏观设计"><a href="#V3-宏观设计" class="headerlink" title="V3 - 宏观设计"></a>V3 - 宏观设计</h3><p>我们新版存储引擎的宏观设计是怎样的？简略来讲，只要到我们的 data 目录下运行 <code>tree</code> 命令，一切便都一目了然。不妨看下这幅美妙的画面它能带给我们怎样的一个惊喜。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">$ tree ./data</span><br><span class="line">./data</span><br><span class="line">├── b-000001</span><br><span class="line">│   ├── chunks</span><br><span class="line">│   │   ├── 000001</span><br><span class="line">│   │   ├── 000002</span><br><span class="line">│   │   └── 000003</span><br><span class="line">│   ├── index</span><br><span class="line">│   └── meta.json</span><br><span class="line">├── b-000004</span><br><span class="line">│   ├── chunks</span><br><span class="line">│   │   └── 000001</span><br><span class="line">│   ├── index</span><br><span class="line">│   └── meta.json</span><br><span class="line">├── b-000005</span><br><span class="line">│   ├── chunks</span><br><span class="line">│   │   └── 000001</span><br><span class="line">│   ├── index</span><br><span class="line">│   └── meta.json</span><br><span class="line">└── b-000006</span><br><span class="line">    ├── meta.json</span><br><span class="line">    └── wal</span><br><span class="line">        ├── 000001</span><br><span class="line">        ├── 000002</span><br><span class="line">        └── 000003</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">$ tree ./data</span><br><span class="line">./data</span><br><span class="line">├── b-000001</span><br><span class="line">│   ├── chunks</span><br><span class="line">│   │   ├── 000001</span><br><span class="line">│   │   ├── 000002</span><br><span class="line">│   │   └── 000003</span><br><span class="line">│   ├── index</span><br><span class="line">│   └── meta.json</span><br><span class="line">├── b-000004</span><br><span class="line">│   ├── chunks</span><br><span class="line">│   │   └── 000001</span><br><span class="line">│   ├── index</span><br><span class="line">│   └── meta.json</span><br><span class="line">├── b-000005</span><br><span class="line">│   ├── chunks</span><br><span class="line">│   │   └── 000001</span><br><span class="line">│   ├── index</span><br><span class="line">│   └── meta.json</span><br><span class="line">└── b-000006</span><br><span class="line">    ├── meta.json</span><br><span class="line">    └── wal</span><br><span class="line">        ├── 000001</span><br><span class="line">        ├── 000002</span><br><span class="line">        └── 000003</span><br></pre></td></tr></table></figure>
 <p>在最上面一层，我们有一组带编号的块，它们均有一个前缀 <code>b-</code>。 每个块显然都维护一个包含索引的文件以及一个包含更多编号文件的”chunk”目录。”chunks”目录没别的，就多个序列的一些数据点的原始块。跟V2的做法一样，这样可以用非常低的成本来读取一个时间窗口里的序列数据，并且允许我们采用相同的有效压缩算法。这个概念已经被证实是行之有效的，我们自然就沿用这一点。很显然，这里不再是每个序列对应一个单个文件，取而代之的是，几个文件包含许多序列的数据块。</p>
 <p>“index”文件的存在是预料之中的事情。我们不妨假定它包含了大量的黑魔法，允许我们找出标签，它们可能的值，整个时间序列，以及存放数据点的数据块。</p>
 <p>但是，为什么有几个目录是一个索引和一些块文件这样的布局？为什么最后一个目录里取而代之的是有一个“wal”目录？搞清楚这两个问题的话可以解决我们90％的问题。</p>
 <h4 id="众多的小型数据库"><a href="#众多的小型数据库" class="headerlink" title="众多的小型数据库"></a>众多的小型数据库</h4><p>我们将我们的水平维度，即时间空间分割成非重叠的块。 每个块当成一个完全独立的数据库，包含其时间窗口的所有时间序列数据。因此，它有自己的索引和一组块文件。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">t0            t1             t2             t3             now</span><br><span class="line"> ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐</span><br><span class="line"> │           │  │           │  │           │  │           │                 ┌────────────┐</span><br><span class="line"> │           │  │           │  │           │  │  mutable  │ &lt;─── write ──── ┤ Prometheus │</span><br><span class="line"> │           │  │           │  │           │  │           │                 └────────────┘</span><br><span class="line"> └───────────┘  └───────────┘  └───────────┘  └───────────┘                        ^</span><br><span class="line">       └──────────────┴───────┬──────┴──────────────┘                              │</span><br><span class="line">                              │                                                  query</span><br><span class="line">                              │                                                    │</span><br><span class="line">                            merge ─────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">t0            t1             t2             t3             now</span><br><span class="line"> ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐</span><br><span class="line"> │           │  │           │  │           │  │           │                 ┌────────────┐</span><br><span class="line"> │           │  │           │  │           │  │  mutable  │ &lt;─── write ──── ┤ Prometheus │</span><br><span class="line"> │           │  │           │  │           │  │           │                 └────────────┘</span><br><span class="line"> └───────────┘  └───────────┘  └───────────┘  └───────────┘                        ^</span><br><span class="line">       └──────────────┴───────┬──────┴──────────────┘                              │</span><br><span class="line">                              │                                                  query</span><br><span class="line">                              │                                                    │</span><br><span class="line">                            merge ─────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure>
 <p>每个块的数据均是无法更改的。当然，在我们采集到新数据时我们必须能够将新序列和样本数据添加到最近的数据块里。对于这个数据块，所有新数据都将写入到内存数据库里，跟我们持久化的数据块一样，它也会提供相同的查找属性。内存里的数据结构也可以被有效地更新。为了防止数据丢失，所有传入的数据还会被写入预写日志（write ahead log），即我们的“wal”目录中的一组文件，我们可以在重新启动时基于这些文件将之前内存里的数据重新填充到内存数据库。</p>
 <p>所有这些文件都带有自己的序列化格式，它附带了许多标志，偏移量，变体和 CRC32 校验和。比起无聊地读着介绍，读者朋友自己去发现它们也许会更有乐趣些。</p>
 <p>这种布局允许我们查出所有和被查询的时间范围相关的数据块。每个块的部分结果被合并到一起形成最终的完整结果。</p>
@@ -214,10 +266,10 @@ var _hmt = _hmt || [];
 <h4 id="压缩-compaction"><a href="#压缩-compaction" class="headerlink" title="压缩 (compaction)"></a>压缩 (compaction)</h4><p>存储引擎必须定期地“切出”一个新的块，并将之前完成的块写入到磁盘。只有块被成功持久化后，用于恢复内存块的预写日志文件（wal）才会被删除。</p>
 <p>我们有兴趣将每个块的保存时间设置的相对短一些（一般设置大约两个小时），以避免在内存中堆积太多的数据。当查询多个块时，我们必须将其结果合并为一个完整结果。 这个合并过程显然会有一个成本，一个一周长的查询不应该需要合并超过80个的部分结果。</p>
 <p>为了实现两者共同的需求，我们引入数据压缩（compaction）。它描述了采集一个或多个数据块并将其写入一个可能会更大的块的过程。它还可以沿途修改现有的数据，例如，清理已删除的数据，或重组我们的样本数据块以提高查询性能。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">t0             t1            t2             t3             t4             now</span><br><span class="line"> ┌────────────┐  ┌──────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐</span><br><span class="line"> │ 1          │  │ 2        │  │ 3         │  │ 4         │  │ 5 mutable │    before</span><br><span class="line"> └────────────┘  └──────────┘  └───────────┘  └───────────┘  └───────────┘</span><br><span class="line"> ┌─────────────────────────────────────────┐  ┌───────────┐  ┌───────────┐</span><br><span class="line"> │ 1              compacted                │  │ 4         │  │ 5 mutable │    after (option A)</span><br><span class="line"> └─────────────────────────────────────────┘  └───────────┘  └───────────┘</span><br><span class="line"> ┌──────────────────────────┐  ┌──────────────────────────┐  ┌───────────┐</span><br><span class="line"> │ 1       compacted        │  │ 3      compacted         │  │ 5 mutable │    after (option B)</span><br><span class="line"> └──────────────────────────┘  └──────────────────────────┘  └───────────┘</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">t0             t1            t2             t3             t4             now</span><br><span class="line"> ┌────────────┐  ┌──────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐</span><br><span class="line"> │ 1          │  │ 2        │  │ 3         │  │ 4         │  │ 5 mutable │    before</span><br><span class="line"> └────────────┘  └──────────┘  └───────────┘  └───────────┘  └───────────┘</span><br><span class="line"> ┌─────────────────────────────────────────┐  ┌───────────┐  ┌───────────┐</span><br><span class="line"> │ 1              compacted                │  │ 4         │  │ 5 mutable │    after (option A)</span><br><span class="line"> └─────────────────────────────────────────┘  └───────────┘  └───────────┘</span><br><span class="line"> ┌──────────────────────────┐  ┌──────────────────────────┐  ┌───────────┐</span><br><span class="line"> │ 1       compacted        │  │ 3      compacted         │  │ 5 mutable │    after (option B)</span><br><span class="line"> └──────────────────────────┘  └──────────────────────────┘  └───────────┘</span><br></pre></td></tr></table></figure>
 <p>在这个例子里，我们有一组顺序的块 <code>[1, 2, 3, 4]</code>。数据块 1, 2 和 3 可以被一起压缩，然后形成的新结构便是 <code>[1, 4]</code>。或者，将它们成对地压缩成 <code>[1，3]</code>。 所有的时间序列数据仍然存在，但是现在总体的数据块更少。 这显著降低了查询时的合并成本，因为现在需要被合并的部分查询结果会更少。</p>
 <h4 id="保留-Retention"><a href="#保留-Retention" class="headerlink" title="保留 (Retention)"></a>保留 (Retention)</h4><p>我们看到，删除旧数据在 V2 存储引擎里是一个缓慢的过程，而且会消耗 CPU，内存和磁盘。那么，我们该如何在基于块的设计中删除旧数据呢？简单来讲，只需删除该目录下在我们配置的保留窗口里没有数据的块。 在下面的示例中，块1可以安全地被删除，而2必须保留到完全落在边界之后才行。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">                     |</span><br><span class="line">┌────────────┐  ┌────┼─────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐</span><br><span class="line">│ 1          │  │ 2  |     │  │ 3         │  │ 4         │  │ 5         │   . . .</span><br><span class="line">└────────────┘  └────┼─────┘  └───────────┘  └───────────┘  └───────────┘</span><br><span class="line">                     |</span><br><span class="line">                     |</span><br><span class="line">            retention boundary</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">                     |</span><br><span class="line">┌────────────┐  ┌────┼─────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐</span><br><span class="line">│ 1          │  │ 2  |     │  │ 3         │  │ 4         │  │ 5         │   . . .</span><br><span class="line">└────────────┘  └────┼─────┘  └───────────┘  └───────────┘  └───────────┘</span><br><span class="line">                     |</span><br><span class="line">                     |</span><br><span class="line">            retention boundary</span><br></pre></td></tr></table></figure>
 <p>获取越旧的数据，数据块可能就变得越大，这是因为我们会不断地压缩以前压缩的块。 因此必须得有一个压缩的上限，这样一来块就不会扩展到跨越整个数据库从而影响到我们设计的最初优势。</p>
 <p>另一个方便之处在于，这样也可以限制部分在保留窗口里部分在外面的数据块的总磁盘开销，即上面示例中的块 2.当用户将最大块的大小设置为总保留窗口的 10% 时，保留块 2 的总开销也有 10% 的上限。</p>
 <p>总而言之，保留删除的实现从非常高的成本变成了几乎零成本。</p>
@@ -242,7 +294,7 @@ var _hmt = _hmt || [];
 <p>为了找出满足两个标签选择器的所有系列，我们取每个标签选择器的倒排索引列表然后取交集。 所得到的集合通常比每个输入列表小一个数量级。由于每个输入列表具有最差情况的复杂度是O（n），所以在两个列表上嵌套迭代的暴力解都具有O（n ^ 2）的运行时间。 其他集合操作也是相同的成本，例如union（app =“foo”OR app =“bar”）。当用户向查询添加进一步的标签选择器时，指数会增加到O（n ^ 3），O（n ^ 4），O（n ^ 5），… O（n ^ k）。 通过更改执行顺序，可以玩很多技巧来最大限度地有效减少运行时间。越复杂，就越需要了解数据样式和标签之间的关系。这引入了更多复杂度，但是并没有减少我们算法的最坏运行时间。</p>
 <p>以上基本便是V2存储里采取的方式，幸运的是，看似微不足道的修改足以获得显著的提升。如果我们说我们的倒排索引中ID是排序好的话会发生什么？</p>
 <p>假设我们初始查询的列表示例如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">__name__=&quot;requests_total&quot;   -&gt;   [ 9999, 1000, 1001, 2000000, 2000001, 2000002, 2000003 ]</span><br><span class="line">     app=&quot;foo&quot;              -&gt;   [ 1, 3, 10, 11, 12, 100, 311, 320, 1000, 1001, 10002 ]</span><br><span class="line"></span><br><span class="line">             intersection   =&gt;   [ 1000, 1001 ]</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">__name__=&quot;requests_total&quot;   -&gt;   [ 9999, 1000, 1001, 2000000, 2000001, 2000002, 2000003 ]</span><br><span class="line">     app=&quot;foo&quot;              -&gt;   [ 1, 3, 10, 11, 12, 100, 311, 320, 1000, 1001, 10002 ]</span><br><span class="line"></span><br><span class="line">             intersection   =&gt;   [ 1000, 1001 ]</span><br></pre></td></tr></table></figure>
 <p>它们的交集相当小。我们可以通过在每个列表的开始处设置一个光标，并且始终从较小的数字那端依次推进。 当两个数字相等时，我们将数字添加到我们的结果中并推进两个游标。总的来说，我们以这种之字形模式（zig-zag pattern）扫描这两个列表，这样一来我们总的成本会是O（2n）= O（n），因为我们只是在任意一个列表中向前移动。</p>
 <p>两个以上列表的不同集合操作的过程也是类似的效果。因此，k个集合操作的数量仅仅只会将时间复杂度修改为（O（k * n））而不是我们最坏情况的查找运行时的指数级（O（n ^ k））。真是一个大进步。</p>
 <p>我在这里描述的内容几乎就是任意一款<a href="https://en.wikipedia.org/wiki/Search_engine_indexing#Inverted_indices" target="_blank" rel="noopener">全文搜索引擎</a> 所使用的规范搜索索引的简化版本。每个序列的描述符被视为一个简短的“文档”，每个标签（名称+固定值）作为其中的“单词”。我们可以忽略通常在搜索引擎索引中遇到的大量附加数据，例如字位置和出现频率等数据。</p>
@@ -298,168 +350,1710 @@ var _hmt = _hmt || [];
 <p>当然也别忘了我所在的CoreOS整个团队和公司本身对这项工作的支持和赞助。感谢那些能够耐心听我一次又一次地扯着SSD，浮点数和序列化格式的每一位同学。</p>
 </blockquote>
 <p>原文链接：<a href="https://fabxc.org/blog/2017-04-10-writing-a-tsdb/" target="_blank" rel="noopener">writing-a-time-series-database-from-scratch</a><br>译文链接：<a href="http://dockone.io/article/2300" target="_blank" rel="noopener">从头编写一款时间序列数据库</a> （翻译：Colstuwjx）</p>
-	  
-	</div>
 
-	<div>
-  	<center>
-	<div class="pagination">
+        </div>
+        
+        <div class="level is-size-7 is-uppercase">
+            <div class="level-start">
+                <div class="level-item">
+                    <span class="is-size-6 has-text-grey has-mr-7">#</span>
+                    <a class="has-link-grey -link" href="/hexo-blog/tags/K8S/">K8S</a>, <a class="has-link-grey -link" href="/hexo-blog/tags/Kubernetes/">Kubernetes</a>, <a class="has-link-grey -link" href="/hexo-blog/tags/Prometheus/">Prometheus</a>, <a class="has-link-grey -link" href="/hexo-blog/tags/转载/">转载</a>
+                </div>
+            </div>
+        </div>
+        
+        
+        
+    </div>
+</div>
+
+
+
+
+
+<div class="card card-transparent">
+    <div class="level post-navigation is-flex-wrap is-mobile">
+        
+        <div class="level-start">
+            <a class="level level-item has-link-grey  article-nav-prev" href="/hexo-blog/20180301/Kubernetes-服务灰度升级最佳实践/">
+                <i class="level-item fas fa-chevron-left"></i>
+                <span class="level-item">Kubernetes 服务灰度升级最佳实践</span>
+            </a>
+        </div>
+        
+        
+        <div class="level-end">
+            <a class="level level-item has-link-grey  article-nav-next" href="/hexo-blog/20171206/Kubernetes-APIServer-证书的手动签发/">
+                <span class="level-item">Kubernetes APIServer 证书的手动签发</span>
+                <i class="level-item fas fa-chevron-right"></i>
+            </a>
+        </div>
+        
+    </div>
+</div>
+
+
+
+<div class="card">
+    <div class="card-content">
+        <h3 class="title is-5 has-text-weight-normal">Comments</h3>
+        
+<script>
+    var disqus_config = function () {
+        this.page.url = 'http://whypro.github.io/hexo-blog/20180110/从头编写一款时间序列数据库/';
+        this.page.identifier = '20180110/从头编写一款时间序列数据库/';
+    };
+    (function() {
+        var d = document, s = d.createElement('script');  
+        s.src = '//' + 'hexo-blog-everlasting' + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+
+<div id="disqus_thread">
+    
+    <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+    </div>
+</div>
+</div>
+                
+
+
+
+
+<div class="column is-4-tablet is-4-desktop is-3-widescreen  has-order-1 column-left is-sticky">
+    
+        
+<div class="card widget">
+    <div class="card-content">
+        <nav class="level">
+            <div class="level-item has-text-centered">
+                <div>
+                    
+                        <img class="image is-128x128 has-mb-6" src="https://www.gravatar.com/avatar/94e51951b08a6a8f31f660f706a38268?s=128" alt="whypro">
+                    
+                    
+                    <p class="is-size-4 is-block">
+                        whypro
+                    </p>
+                    
+                    
+                    <p class="is-size-6 is-block">
+                        Don&#39;t think twice, it&#39;s all right.
+                    </p>
+                    
+                    
+                    <p class="is-size-6 is-flex is-flex-center has-text-grey">
+                        <i class="fas fa-map-marker-alt has-mr-7"></i>
+                        <span>Shanghai</span>
+                    </p>
+                    
+                </div>
+            </div>
+        </nav>
+        <nav class="level is-mobile">
+            <div class="level-item has-text-centered is-marginless">
+                <div>
+                    <p class="heading">
+                        Posts
+                    </p>
+                    <p class="title has-text-weight-normal">
+                        32
+                    </p>
+                </div>
+            </div>
+            <div class="level-item has-text-centered is-marginless">
+                <div>
+                    <p class="heading">
+                        Categories
+                    </p>
+                    <p class="title has-text-weight-normal">
+                        0
+                    </p>
+                </div>
+            </div>
+            <div class="level-item has-text-centered is-marginless">
+                <div>
+                    <p class="heading">
+                        Tags
+                    </p>
+                    <p class="title has-text-weight-normal">
+                        31
+                    </p>
+                </div>
+            </div>
+        </nav>
+        <div class="level">
+            <a class="level-item button is-link is-rounded" href="https://github.com/whypro" target="_blank">
+                Follow</a>
+        </div>
+        
+        
+        <div class="level is-mobile">
+            
+            <a class="level-item button is-white is-marginless" target="_blank" title="Github" href="https://github.com/whypro">
+                
+                <i class="fab fa-github"></i>
+                
+            </a>
+            
+            <a class="level-item button is-white is-marginless" target="_blank" title="RSS" href="/hexo-blog/">
+                
+                <i class="fas fa-rss"></i>
+                
+            </a>
+            
+        </div>
+        
+    </div>
+</div>
+    
+        
+
+<div class="card widget">
+    <div class="card-content">
+        <div class="menu">
+        <h3 class="menu-label">
+            Links
+        </h3>
+        <ul class="menu-list">
+        
+            <li>
+                <a class="level is-mobile" href="https://hexo.io" target="_blank">
+                    <span class="level-left">
+                        <span class="level-item">Hexo</span>
+                    </span>
+                    <span class="level-right">
+                        <span class="level-item tag">hexo.io</span>
+                    </span>
+                </a>
+            </li>
+        
+            <li>
+                <a class="level is-mobile" href="https://github.com/whypro" target="_blank">
+                    <span class="level-left">
+                        <span class="level-item">whypro</span>
+                    </span>
+                    <span class="level-right">
+                        <span class="level-item tag">github.com</span>
+                    </span>
+                </a>
+            </li>
+        
+        </ul>
+        </div>
+    </div>
+</div>
+
+
+    
+        
+<div class="card widget">
+    <div class="card-content">
+        <div class="menu">
+            <h3 class="menu-label">
+                Categories
+            </h3>
+            <ul class="menu-list">
+            
+            </ul>
+        </div>
+    </div>
+</div>
+    
+        
+<div class="card widget">
+    <div class="card-content">
+        <h3 class="menu-label">
+            Tag Cloud
+        </h3>
+        <a href="/hexo-blog/tags/Android/" style="font-size: 10px;">Android</a> <a href="/hexo-blog/tags/Fedora/" style="font-size: 10px;">Fedora</a> <a href="/hexo-blog/tags/Golang/" style="font-size: 10px;">Golang</a> <a href="/hexo-blog/tags/HTC/" style="font-size: 10px;">HTC</a> <a href="/hexo-blog/tags/K8S/" style="font-size: 16.67px;">K8S</a> <a href="/hexo-blog/tags/Kubernetes/" style="font-size: 16.67px;">Kubernetes</a> <a href="/hexo-blog/tags/Linux/" style="font-size: 10px;">Linux</a> <a href="/hexo-blog/tags/Openstack/" style="font-size: 10px;">Openstack</a> <a href="/hexo-blog/tags/Prometheus/" style="font-size: 10px;">Prometheus</a> <a href="/hexo-blog/tags/Python/" style="font-size: 18.33px;">Python</a> <a href="/hexo-blog/tags/etcd/" style="font-size: 10px;">etcd</a> <a href="/hexo-blog/tags/terraform/" style="font-size: 10px;">terraform</a> <a href="/hexo-blog/tags/主板/" style="font-size: 10px;">主板</a> <a href="/hexo-blog/tags/云计算/" style="font-size: 15px;">云计算</a> <a href="/hexo-blog/tags/刷机/" style="font-size: 10px;">刷机</a> <a href="/hexo-blog/tags/原创/" style="font-size: 20px;">原创</a> <a href="/hexo-blog/tags/图像处理/" style="font-size: 10px;">图像处理</a> <a href="/hexo-blog/tags/多线程/" style="font-size: 10px;">多线程</a> <a href="/hexo-blog/tags/安卓/" style="font-size: 10px;">安卓</a> <a href="/hexo-blog/tags/操作系统/" style="font-size: 10px;">操作系统</a> <a href="/hexo-blog/tags/游戏/" style="font-size: 10px;">游戏</a> <a href="/hexo-blog/tags/爬虫/" style="font-size: 13.33px;">爬虫</a> <a href="/hexo-blog/tags/硬件/" style="font-size: 10px;">硬件</a> <a href="/hexo-blog/tags/算法/" style="font-size: 15px;">算法</a> <a href="/hexo-blog/tags/维修/" style="font-size: 10px;">维修</a> <a href="/hexo-blog/tags/网络/" style="font-size: 10px;">网络</a> <a href="/hexo-blog/tags/蚁群算法/" style="font-size: 10px;">蚁群算法</a> <a href="/hexo-blog/tags/转载/" style="font-size: 11.67px;">转载</a> <a href="/hexo-blog/tags/运维/" style="font-size: 10px;">运维</a> <a href="/hexo-blog/tags/连连看/" style="font-size: 10px;">连连看</a> <a href="/hexo-blog/tags/黑客技术/" style="font-size: 10px;">黑客技术</a>
+    </div>
+</div>
 
     
     
-    <a href="/hexo-blog/20180301/Kubernetes-服务灰度升级最佳实践/" type="button" class="btn btn-default"><i class="fa fa-arrow-circle-o-left"></i> Prev</a>
-    
+        <div class="column-right-shadow is-hidden-widescreen is-sticky">
+        
+            
+<div class="card widget" id="toc">
+    <div class="card-content">
+        <div class="menu">
+            <h3 class="menu-label">
+                Catalogue
+            </h3>
+            <ul class="menu-list"><li>
+        <a class="is-flex" href="#问题，难题，问题域">
+        <span class="has-mr-6">1</span>
+        <span>问题，难题，问题域</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#时间序列数据">
+        <span class="has-mr-6">1.1</span>
+        <span>时间序列数据</span>
+        </a></li><li>
+        <a class="is-flex" href="#横轴和纵轴">
+        <span class="has-mr-6">1.2</span>
+        <span>横轴和纵轴</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#当前的解决方案">
+        <span class="has-mr-6">1.2.1</span>
+        <span>当前的解决方案</span>
+        </a></li></ul></li><li>
+        <a class="is-flex" href="#序列分流-Series-Churn">
+        <span class="has-mr-6">1.3</span>
+        <span>序列分流 (Series Churn)</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#当前解决方案">
+        <span class="has-mr-6">1.3.1</span>
+        <span>当前解决方案</span>
+        </a></li></ul></li><li>
+        <a class="is-flex" href="#耗用资源">
+        <span class="has-mr-6">1.4</span>
+        <span>耗用资源</span>
+        </a></li></ul></li><li>
+        <a class="is-flex" href="#从头开始">
+        <span class="has-mr-6">2</span>
+        <span>从头开始</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#V3-宏观设计">
+        <span class="has-mr-6">2.1</span>
+        <span>V3 - 宏观设计</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#众多的小型数据库">
+        <span class="has-mr-6">2.1.1</span>
+        <span>众多的小型数据库</span>
+        </a></li><li>
+        <a class="is-flex" href="#压缩-compaction">
+        <span class="has-mr-6">2.1.2</span>
+        <span>压缩 (compaction)</span>
+        </a></li><li>
+        <a class="is-flex" href="#保留-Retention">
+        <span class="has-mr-6">2.1.3</span>
+        <span>保留 (Retention)</span>
+        </a></li></ul></li><li>
+        <a class="is-flex" href="#索引-index">
+        <span class="has-mr-6">2.2</span>
+        <span>索引 (index)</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#组合标签-Combining-Labels">
+        <span class="has-mr-6">2.2.1</span>
+        <span>组合标签 (Combining Labels)</span>
+        </a></li></ul></li></ul></li><li>
+        <a class="is-flex" href="#基准测试-Benchmark">
+        <span class="has-mr-6">3</span>
+        <span>基准测试 (Benchmark)</span>
+        </a></li><li>
+        <a class="is-flex" href="#结论">
+        <span class="has-mr-6">4</span>
+        <span>结论</span>
+        </a></li></ul>
+        </div>
+    </div>
+</div>
 
-    <a href="/hexo-blog/" type="button" class="btn btn-default"><i class="fa fa-home"></i>Home</a>
-    
-    <a href="/hexo-blog/20171206/Kubernetes-APIServer-证书的手动签发/" type="button" class="btn btn-default ">Next<i class="fa fa-arrow-circle-o-right"></i></a>
-    
+        
+            
+<div class="card widget">
+    <div class="card-content">
+        <h3 class="menu-label">
+            Recent
+        </h3>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T13:42:51.000Z">2019-05-23</time></div>
+                    <a href="/hexo-blog/20190523/HTC-刷机备忘/" class="has-link-black-ter is-size-6">HTC 刷机备忘</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T13:01:16.000Z">2019-05-23</time></div>
+                    <a href="/hexo-blog/20190523/二叉树两个节点之间的最大距离/" class="has-link-black-ter is-size-6">二叉树两个节点之间的最大距离</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T11:11:28.000Z">2019-05-23</time></div>
+                    <a href="/hexo-blog/20190523/有序数组的不同绝对值个数/" class="has-link-black-ter is-size-6">有序数组的不同绝对值个数</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-22T06:13:02.000Z">2019-05-22</time></div>
+                    <a href="/hexo-blog/20190522/从零开始实现一个-terraform-plugin/" class="has-link-black-ter is-size-6">从零开始实现一个 terraform plugin</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-01-07T07:22:00.000Z">2019-01-07</time></div>
+                    <a href="/hexo-blog/20190107/使用-Devstack-搭建-Openstack-集群/" class="has-link-black-ter is-size-6">使用 Devstack 搭建 Openstack 集群</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+    </div>
+</div>
 
+        
+            <div class="card widget">
+    <div class="card-content">
+        <div class="menu">
+        <h3 class="menu-label">
+            Archives
+        </h3>
+        <ul class="menu-list">
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2019/05/">
+                <span class="level-start">
+                    <span class="level-item">May 2019</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">4</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2019/01/">
+                <span class="level-start">
+                    <span class="level-item">January 2019</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/11/">
+                <span class="level-start">
+                    <span class="level-item">November 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/07/">
+                <span class="level-start">
+                    <span class="level-item">July 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/04/">
+                <span class="level-start">
+                    <span class="level-item">April 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/03/">
+                <span class="level-start">
+                    <span class="level-item">March 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/01/">
+                <span class="level-start">
+                    <span class="level-item">January 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2017/12/">
+                <span class="level-start">
+                    <span class="level-item">December 2017</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2017/10/">
+                <span class="level-start">
+                    <span class="level-item">October 2017</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2017/09/">
+                <span class="level-start">
+                    <span class="level-item">September 2017</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2015/07/">
+                <span class="level-start">
+                    <span class="level-item">July 2015</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2015/04/">
+                <span class="level-start">
+                    <span class="level-item">April 2015</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/09/">
+                <span class="level-start">
+                    <span class="level-item">September 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/08/">
+                <span class="level-start">
+                    <span class="level-item">August 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/05/">
+                <span class="level-start">
+                    <span class="level-item">May 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/04/">
+                <span class="level-start">
+                    <span class="level-item">April 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">4</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/03/">
+                <span class="level-start">
+                    <span class="level-item">March 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">2</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/10/">
+                <span class="level-start">
+                    <span class="level-item">October 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">3</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/09/">
+                <span class="level-start">
+                    <span class="level-item">September 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/08/">
+                <span class="level-start">
+                    <span class="level-item">August 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/07/">
+                <span class="level-start">
+                    <span class="level-item">July 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/06/">
+                <span class="level-start">
+                    <span class="level-item">June 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/02/">
+                <span class="level-start">
+                    <span class="level-item">February 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        </ul>
+        </div>
+    </div>
+</div>
+        
+            <div class="card widget">
+    <div class="card-content">
+        <div class="menu">
+            <h3 class="menu-label">
+                Tags
+            </h3>
+            <div class="field is-grouped is-grouped-multiline">
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Android/">
+                        <span class="tag">Android</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Fedora/">
+                        <span class="tag">Fedora</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Golang/">
+                        <span class="tag">Golang</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/HTC/">
+                        <span class="tag">HTC</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/K8S/">
+                        <span class="tag">K8S</span>
+                        <span class="tag is-grey">6</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Kubernetes/">
+                        <span class="tag">Kubernetes</span>
+                        <span class="tag is-grey">6</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Linux/">
+                        <span class="tag">Linux</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Openstack/">
+                        <span class="tag">Openstack</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Prometheus/">
+                        <span class="tag">Prometheus</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Python/">
+                        <span class="tag">Python</span>
+                        <span class="tag is-grey">9</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/etcd/">
+                        <span class="tag">etcd</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/terraform/">
+                        <span class="tag">terraform</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/主板/">
+                        <span class="tag">主板</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/云计算/">
+                        <span class="tag">云计算</span>
+                        <span class="tag is-grey">5</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/刷机/">
+                        <span class="tag">刷机</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/原创/">
+                        <span class="tag">原创</span>
+                        <span class="tag is-grey">30</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/图像处理/">
+                        <span class="tag">图像处理</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/多线程/">
+                        <span class="tag">多线程</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/安卓/">
+                        <span class="tag">安卓</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/操作系统/">
+                        <span class="tag">操作系统</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/游戏/">
+                        <span class="tag">游戏</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/爬虫/">
+                        <span class="tag">爬虫</span>
+                        <span class="tag is-grey">4</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/硬件/">
+                        <span class="tag">硬件</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/算法/">
+                        <span class="tag">算法</span>
+                        <span class="tag is-grey">5</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/维修/">
+                        <span class="tag">维修</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/网络/">
+                        <span class="tag">网络</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/蚁群算法/">
+                        <span class="tag">蚁群算法</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/转载/">
+                        <span class="tag">转载</span>
+                        <span class="tag is-grey">2</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/运维/">
+                        <span class="tag">运维</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/连连看/">
+                        <span class="tag">连连看</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/黑客技术/">
+                        <span class="tag">黑客技术</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+        
+        </div>
     
 </div>
 
-    </center>
-	</div>
-	
-	<!-- comment -->
-	
-<section id="comment">
-    <h2 class="title">Comments</h2>
+                
 
+
+
+
+<div class="column is-4-tablet is-4-desktop is-3-widescreen is-hidden-touch is-hidden-desktop-only has-order-3 column-right is-sticky">
     
-    <div id="disqus_thread" class="ds-thread">
-        <script type="text/javascript">
-            /**
-             * RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
-             * LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables
-             */
-                /*
-                 var disqus_config = function () {
-                 this.page.url = PAGE_URL; // Replace PAGE_URL with your page's canonical URL variable
-                 this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
-                 };
-                 */
-            (function() { // DON'T EDIT BELOW THIS LINE
-                var d = document, s = d.createElement('script');
-
-                s.src = '//hexo-blog-everlasting.disqus.com/embed.js';
-
-                s.setAttribute('data-timestamp', +new Date());
-                (d.head || d.body).appendChild(s);
-            })();
-        </script>
-        <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by
-                Disqus.</a></noscript>
+        
+<div class="card widget" id="toc">
+    <div class="card-content">
+        <div class="menu">
+            <h3 class="menu-label">
+                Catalogue
+            </h3>
+            <ul class="menu-list"><li>
+        <a class="is-flex" href="#问题，难题，问题域">
+        <span class="has-mr-6">1</span>
+        <span>问题，难题，问题域</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#时间序列数据">
+        <span class="has-mr-6">1.1</span>
+        <span>时间序列数据</span>
+        </a></li><li>
+        <a class="is-flex" href="#横轴和纵轴">
+        <span class="has-mr-6">1.2</span>
+        <span>横轴和纵轴</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#当前的解决方案">
+        <span class="has-mr-6">1.2.1</span>
+        <span>当前的解决方案</span>
+        </a></li></ul></li><li>
+        <a class="is-flex" href="#序列分流-Series-Churn">
+        <span class="has-mr-6">1.3</span>
+        <span>序列分流 (Series Churn)</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#当前解决方案">
+        <span class="has-mr-6">1.3.1</span>
+        <span>当前解决方案</span>
+        </a></li></ul></li><li>
+        <a class="is-flex" href="#耗用资源">
+        <span class="has-mr-6">1.4</span>
+        <span>耗用资源</span>
+        </a></li></ul></li><li>
+        <a class="is-flex" href="#从头开始">
+        <span class="has-mr-6">2</span>
+        <span>从头开始</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#V3-宏观设计">
+        <span class="has-mr-6">2.1</span>
+        <span>V3 - 宏观设计</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#众多的小型数据库">
+        <span class="has-mr-6">2.1.1</span>
+        <span>众多的小型数据库</span>
+        </a></li><li>
+        <a class="is-flex" href="#压缩-compaction">
+        <span class="has-mr-6">2.1.2</span>
+        <span>压缩 (compaction)</span>
+        </a></li><li>
+        <a class="is-flex" href="#保留-Retention">
+        <span class="has-mr-6">2.1.3</span>
+        <span>保留 (Retention)</span>
+        </a></li></ul></li><li>
+        <a class="is-flex" href="#索引-index">
+        <span class="has-mr-6">2.2</span>
+        <span>索引 (index)</span>
+        </a><ul class="menu-list"><li>
+        <a class="is-flex" href="#组合标签-Combining-Labels">
+        <span class="has-mr-6">2.2.1</span>
+        <span>组合标签 (Combining Labels)</span>
+        </a></li></ul></li></ul></li><li>
+        <a class="is-flex" href="#基准测试-Benchmark">
+        <span class="has-mr-6">3</span>
+        <span>基准测试 (Benchmark)</span>
+        </a></li><li>
+        <a class="is-flex" href="#结论">
+        <span class="has-mr-6">4</span>
+        <span>结论</span>
+        </a></li></ul>
+        </div>
     </div>
+</div>
+
     
-</section>
+        
+<div class="card widget">
+    <div class="card-content">
+        <h3 class="menu-label">
+            Recent
+        </h3>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T13:42:51.000Z">2019-05-23</time></div>
+                    <a href="/hexo-blog/20190523/HTC-刷机备忘/" class="has-link-black-ter is-size-6">HTC 刷机备忘</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T13:01:16.000Z">2019-05-23</time></div>
+                    <a href="/hexo-blog/20190523/二叉树两个节点之间的最大距离/" class="has-link-black-ter is-size-6">二叉树两个节点之间的最大距离</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T11:11:28.000Z">2019-05-23</time></div>
+                    <a href="/hexo-blog/20190523/有序数组的不同绝对值个数/" class="has-link-black-ter is-size-6">有序数组的不同绝对值个数</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-22T06:13:02.000Z">2019-05-22</time></div>
+                    <a href="/hexo-blog/20190522/从零开始实现一个-terraform-plugin/" class="has-link-black-ter is-size-6">从零开始实现一个 terraform plugin</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-01-07T07:22:00.000Z">2019-01-07</time></div>
+                    <a href="/hexo-blog/20190107/使用-Devstack-搭建-Openstack-集群/" class="has-link-black-ter is-size-6">使用 Devstack 搭建 Openstack 集群</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+    </div>
+</div>
+
+    
+        <div class="card widget">
+    <div class="card-content">
+        <div class="menu">
+        <h3 class="menu-label">
+            Archives
+        </h3>
+        <ul class="menu-list">
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2019/05/">
+                <span class="level-start">
+                    <span class="level-item">May 2019</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">4</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2019/01/">
+                <span class="level-start">
+                    <span class="level-item">January 2019</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/11/">
+                <span class="level-start">
+                    <span class="level-item">November 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/07/">
+                <span class="level-start">
+                    <span class="level-item">July 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/04/">
+                <span class="level-start">
+                    <span class="level-item">April 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/03/">
+                <span class="level-start">
+                    <span class="level-item">March 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/01/">
+                <span class="level-start">
+                    <span class="level-item">January 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2017/12/">
+                <span class="level-start">
+                    <span class="level-item">December 2017</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2017/10/">
+                <span class="level-start">
+                    <span class="level-item">October 2017</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2017/09/">
+                <span class="level-start">
+                    <span class="level-item">September 2017</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2015/07/">
+                <span class="level-start">
+                    <span class="level-item">July 2015</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2015/04/">
+                <span class="level-start">
+                    <span class="level-item">April 2015</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/09/">
+                <span class="level-start">
+                    <span class="level-item">September 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/08/">
+                <span class="level-start">
+                    <span class="level-item">August 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/05/">
+                <span class="level-start">
+                    <span class="level-item">May 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/04/">
+                <span class="level-start">
+                    <span class="level-item">April 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">4</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2013/03/">
+                <span class="level-start">
+                    <span class="level-item">March 2013</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">2</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/10/">
+                <span class="level-start">
+                    <span class="level-item">October 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">3</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/09/">
+                <span class="level-start">
+                    <span class="level-item">September 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/08/">
+                <span class="level-start">
+                    <span class="level-item">August 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/07/">
+                <span class="level-start">
+                    <span class="level-item">July 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/06/">
+                <span class="level-start">
+                    <span class="level-item">June 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2012/02/">
+                <span class="level-start">
+                    <span class="level-item">February 2012</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        </ul>
+        </div>
+    </div>
+</div>
+    
+        <div class="card widget">
+    <div class="card-content">
+        <div class="menu">
+            <h3 class="menu-label">
+                Tags
+            </h3>
+            <div class="field is-grouped is-grouped-multiline">
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Android/">
+                        <span class="tag">Android</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Fedora/">
+                        <span class="tag">Fedora</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Golang/">
+                        <span class="tag">Golang</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/HTC/">
+                        <span class="tag">HTC</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/K8S/">
+                        <span class="tag">K8S</span>
+                        <span class="tag is-grey">6</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Kubernetes/">
+                        <span class="tag">Kubernetes</span>
+                        <span class="tag is-grey">6</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Linux/">
+                        <span class="tag">Linux</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Openstack/">
+                        <span class="tag">Openstack</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Prometheus/">
+                        <span class="tag">Prometheus</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/Python/">
+                        <span class="tag">Python</span>
+                        <span class="tag is-grey">9</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/etcd/">
+                        <span class="tag">etcd</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/terraform/">
+                        <span class="tag">terraform</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/主板/">
+                        <span class="tag">主板</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/云计算/">
+                        <span class="tag">云计算</span>
+                        <span class="tag is-grey">5</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/刷机/">
+                        <span class="tag">刷机</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/原创/">
+                        <span class="tag">原创</span>
+                        <span class="tag is-grey">30</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/图像处理/">
+                        <span class="tag">图像处理</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/多线程/">
+                        <span class="tag">多线程</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/安卓/">
+                        <span class="tag">安卓</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/操作系统/">
+                        <span class="tag">操作系统</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/游戏/">
+                        <span class="tag">游戏</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/爬虫/">
+                        <span class="tag">爬虫</span>
+                        <span class="tag is-grey">4</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/硬件/">
+                        <span class="tag">硬件</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/算法/">
+                        <span class="tag">算法</span>
+                        <span class="tag is-grey">5</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/维修/">
+                        <span class="tag">维修</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/网络/">
+                        <span class="tag">网络</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/蚁群算法/">
+                        <span class="tag">蚁群算法</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/转载/">
+                        <span class="tag">转载</span>
+                        <span class="tag is-grey">2</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/运维/">
+                        <span class="tag">运维</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/连连看/">
+                        <span class="tag">连连看</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+                <div class="control">
+                    <a class="tags has-addons" href="/hexo-blog/tags/黑客技术/">
+                        <span class="tag">黑客技术</span>
+                        <span class="tag is-grey">1</span>
+                    </a>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+    
+    
+</div>
+
+            </div>
+        </div>
+    </section>
+    <footer class="footer">
+    <div class="container">
+        <div class="level">
+            <div class="level-start has-text-centered-mobile">
+                <a class="footer-logo is-block has-mb-6" href="/hexo-blog/">
+                
+                    <img src="/hexo-blog/images/logo.svg" alt="从头编写一款时间序列数据库" height="28">
+                
+                </a>
+                <p class="is-size-7">
+                &copy; 2019 whypro&nbsp;
+                Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> & <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank">Icarus</a>
+                
+                </p>
+            </div>
+            <div class="level-end">
+            
+                <div class="field has-addons is-flex-center-mobile has-mt-5-mobile is-flex-wrap is-flex-middle">
+                
+                
+                <p class="control">
+                    <a class="button is-white is-large" target="_blank" title="GitHub" href="https://github.com/whypro">
+                        
+                        <i class="fab fa-github"></i>
+                        
+                    </a>
+                </p>
+                
+                </div>
+            
+            </div>
+        </div>
+    </div>
+</footer>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.22.2/min/moment-with-locales.min.js"></script>
+<script>moment.locale("en");</script>
 
 
-	</div> <!-- col-md-9/col-md-12 -->
-		
-	
-	<div id="side_meta">
-		<div class="col-md-3" id="post_meta"> 
-
-	<!-- date -->
-	
-	<div class="meta-widget">
-	<i class="fa fa-clock-o"></i>
-	2018-01-10 
-	</div>
-	
-
-	<!-- categories -->
+    
+    
+    
+    <script src="/hexo-blog/js/animation.js"></script>
     
 
-	<!-- tags -->
-	
-	<div class="meta-widget">
-	<a data-toggle="collapse" data-target="#tags"><i class="fa fa-tags"></i></a>		  
-    <ul id="tags" class="tag_box list-unstyled collapse in">	  
-	    
-  <li><a href="/hexo-blog/tags/转载/">转载<span>2</span></a></li> <li><a href="/hexo-blog/tags/Kubernetes/">Kubernetes<span>6</span></a></li> <li><a href="/hexo-blog/tags/K8S/">K8S<span>6</span></a></li> <li><a href="/hexo-blog/tags/Prometheus/">Prometheus<span>1</span></a></li>
-    </ul>
-	</div>
-		
+    
+    
+    
+    <script src="https://cdn.jsdelivr.net/npm/lightgallery@1.6.8/dist/js/lightgallery.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.7.0/dist/js/jquery.justifiedGallery.min.js" defer></script>
+    <script src="/hexo-blog/js/gallery.js" defer></script>
+    
 
-	<!-- toc -->
-	<div class="meta-widget">
-	
-	   <a data-toggle="collapse" data-target="#toc"><i class="fa fa-bars"></i></a>
-	   <div id="toc" class="toc collapse in">
-		   <span class="toc-title">Contents</span>
-			<ol class="toc-article"><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#问题，难题，问题域"><span class="toc-article-text">问题，难题，问题域</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#时间序列数据"><span class="toc-article-text">时间序列数据</span></a></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#横轴和纵轴"><span class="toc-article-text">横轴和纵轴</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#当前的解决方案"><span class="toc-article-text">当前的解决方案</span></a></li></ol></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#序列分流-Series-Churn"><span class="toc-article-text">序列分流 (Series Churn)</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#当前解决方案"><span class="toc-article-text">当前解决方案</span></a></li></ol></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#耗用资源"><span class="toc-article-text">耗用资源</span></a></li></ol></li><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#从头开始"><span class="toc-article-text">从头开始</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#V3-宏观设计"><span class="toc-article-text">V3 - 宏观设计</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#众多的小型数据库"><span class="toc-article-text">众多的小型数据库</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-5"><a class="toc-article-link" href="#mmap"><span class="toc-article-text">mmap</span></a></li></ol></li><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#压缩-compaction"><span class="toc-article-text">压缩 (compaction)</span></a></li><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#保留-Retention"><span class="toc-article-text">保留 (Retention)</span></a></li></ol></li><li class="toc-article-item toc-article-level-3"><a class="toc-article-link" href="#索引-index"><span class="toc-article-text">索引 (index)</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-4"><a class="toc-article-link" href="#组合标签-Combining-Labels"><span class="toc-article-text">组合标签 (Combining Labels)</span></a></li></ol></li></ol></li><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#基准测试-Benchmark"><span class="toc-article-text">基准测试 (Benchmark)</span></a></li><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#结论"><span class="toc-article-text">结论</span></a></li></ol>
-		</div>
-	
-	</div>
-	
-    <hr>
-	
-</div><!-- col-md-3 -->
+    
+    
 
-	</div>
-		
-
-</div><!-- row -->
-
-<script type="text/javascript">
-var disqus_shortname = 'hexo-blog-everlasting';
-(function(){
-  var dsq = document.createElement('script');
-  dsq.type = 'text/javascript';
-  dsq.async = true;
-  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
-  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-}());
+<div id="outdated">
+    <h6>Your browser is out-of-date!</h6>
+    <p>Update your browser to view this website correctly. <a id="btnUpdateBrowser" href="http://outdatedbrowser.com/">Update
+            my browser now </a></p>
+    <p class="last"><a href="#" id="btnCloseUpdateBrowser" title="Close">&times;</a></p>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/outdatedbrowser@1.1.5/outdatedbrowser/outdatedbrowser.min.js" defer></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        outdatedBrowser({
+            bgColor: '#f25648',
+            color: '#ffffff',
+            lowerThan: 'flex'
+        });
+    });
 </script>
 
 
+    
+    
+<script src="https://cdn.jsdelivr.net/npm/mathjax@2.7.5/unpacked/MathJax.js?config=TeX-MML-AM_CHTML" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    MathJax.Hub.Config({
+        'HTML-CSS': {
+            matchFontHeight: false
+        },
+        SVG: {
+            matchFontHeight: false
+        },
+        CommonHTML: {
+            matchFontHeight: false
+        },
+        tex2jax: {
+            inlineMath: [
+                ['$','$'],
+                ['\\(','\\)']
+            ]
+        }
+    });
+});
+</script>
 
-	</div>
-  </div>
-  <div class="container-narrow">
-  <footer> <p>
-  &copy; 2019 whypro
-  
-      with help from <a href="http://hexo.io/" target="_blank">Hexo</a>,<a href="http://github.com/wzpan/hexo-theme-freemind/">Freemind</a>,<a href="http://getbootstrap.com/" target="_blank">Twitter Bootstrap</a> and <a href="http://getbootstrap.com/" target="_blank">BOOTSTRA.386</a>. 
-     <br> Theme by <a href="http://github.com/wzpan/hexo-theme-freemind/">Freemind.386</a>.    
-</p>
- </footer>
-</div> <!-- container-narrow -->
-  
+    
+    
 
-
-  
-<a id="gotop" href="#">   
-  <span>⬆︎TOP</span>
+<a id="back-to-top" title="Back to Top" href="javascript:;">
+    <i class="fas fa-chevron-up"></i>
 </a>
-
-<script src="/hexo-blog/js/jquery.imagesloaded.min.js"></script>
-<script src="/hexo-blog/js/gallery.js"></script>
-<script src="/hexo-blog/js/bootstrap.min.js"></script>
-<script src="/hexo-blog/js/main.js"></script>
-<script src="/hexo-blog/js/search.js"></script> 
+<script src="/hexo-blog/js/back-to-top.js" defer></script>
 
 
-<link rel="stylesheet" href="/hexo-blog/fancybox/jquery.fancybox.css" media="screen" type="text/css">
-<script src="/hexo-blog/fancybox/jquery.fancybox.pack.js"></script>
-<script type="text/javascript">
-(function($){
-  $('.fancybox').fancybox();
-})(jQuery);
+    
+    
+
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+    <script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.4/dist/clipboard.min.js" defer></script>
+    <script src="/hexo-blog/js/clipboard.js" defer></script>
+    
+
+    
+    
+    
+
+
+<script src="/hexo-blog/js/main.js" defer></script>
+
+    
+    <div class="searchbox ins-search">
+    <div class="searchbox-container ins-search-container">
+        <div class="searchbox-input-wrapper">
+            <input type="text" class="searchbox-input ins-search-input" placeholder="Type something...">
+            <span class="searchbox-close ins-close ins-selectable"><i class="fa fa-times-circle"></i></span>
+        </div>
+        <div class="searchbox-result-wrapper ins-section-wrapper">
+            <div class="ins-section-container"></div>
+        </div>
+    </div>
+</div>
+<script>
+    (function (window) {
+        var INSIGHT_CONFIG = {
+            TRANSLATION: {
+                POSTS: 'Posts',
+                PAGES: 'Pages',
+                CATEGORIES: 'Categories',
+                TAGS: 'Tags',
+                UNTITLED: '(Untitled)',
+            },
+            CONTENT_URL: '/hexo-blog/content.json',
+        };
+        window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+    })(window);
 </script>
-
-
-
-   <script type="text/javascript">      
-     var search_path = "search.xml";
-	 if (search_path.length == 0) {
-	 	search_path = "search.xml";
-	 }
-	 var path = "/hexo-blog/" + search_path;
-     searchFunc(path, 'local-search-input', 'local-search-result');
-   </script>
-
+<script src="/hexo-blog/js/insight.js" defer></script>
+<link rel="stylesheet" href="/hexo-blog/css/search.css">
+<link rel="stylesheet" href="/hexo-blog/css/insight.css">
+    
 </body>
-   </html>
+</html>
