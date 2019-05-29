@@ -1,0 +1,14 @@
+language: node_js
+node_js:
+  - "10"
+branches:
+  only:
+    - master
+
+before_script:
+  - npm test
+  - rm -rf node_modules/
+  - git clone https://github.com/elmorec/hexo-starter.git generate_test
+  - git clone https://github.com/elmorec/hexo-theme-inside.git generate_test/themes/inside
+  - cd generate_test
+  - npm install
