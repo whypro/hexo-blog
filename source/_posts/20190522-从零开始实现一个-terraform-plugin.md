@@ -282,7 +282,7 @@ func resourceComputeInstanceRead(d *schema.ResourceData, meta interface{}) error
 
 上面基本代码框架实现后，我们就可以对 plugin 进行编译和构建了：
 
-``` bash
+``` sh
 go build -o terraform-provider-qvm
 ```
 
@@ -303,7 +303,8 @@ terraform-provider-<NAME>
 terraform/qvm
 ├── provider.tf
 ├── resources.tf
-└── variables.tf
+├── variables.tf
+└── terraform.tfvars
 ```
 
 ### 初始化
@@ -314,7 +315,7 @@ terraform init
 
 ### 修改配置
 
-可以通过 `export` 或直接修改 `.tf` 文件，对配置进行修改：
+可以通过 `export` 或创建 `.tfvars` 文件，对配置进行修改：
 
 ```
 export QVM_AK=
@@ -343,10 +344,22 @@ terraform plan
 terraform apply
 ```
 
+或者指定 `.tfvars` 文件：
+
+```
+terraform apply -var-file="terraform.tfvars"
+```
+
 ### 销毁
 
 ```
 terraform destroy
+```
+
+或者指定 `.tfvars` 文件：
+
+```
+terraform destroy -var-file="terraform.tfvars"
 ```
 
 ## 参考
