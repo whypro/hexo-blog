@@ -16,7 +16,7 @@
 <meta property="og:description" content="terraform 作为一个优秀的开源基础设施管理、构建工具，官方或第三方提供了很多 plugin 来对接各种云平台（IaaS）。然而在我们平时开发和测试过程中，需要使用内部的 IaaS 服务频繁创建和删除 VM，而目前人工操作的方式比较费时费力，且没有现成的 plugin 可以使用。为了更方便地利用 terraform 工具来对内部 IaaS 资源进行管理和操作，我们决定自己开发一个 terra">
 <meta property="og:locale" content="en">
 <meta property="og:image" content="http://whypro.github.io/hexo-blog/images/og_image.png">
-<meta property="og:updated_time" content="2019-05-27T03:06:11.000Z">
+<meta property="og:updated_time" content="2019-05-30T09:59:44.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="从零开始实现一个 terraform plugin">
 <meta name="twitter:description" content="terraform 作为一个优秀的开源基础设施管理、构建工具，官方或第三方提供了很多 plugin 来对接各种云平台（IaaS）。然而在我们平时开发和测试过程中，需要使用内部的 IaaS 服务频繁创建和删除 VM，而目前人工操作的方式比较费时费力，且没有现成的 plugin 可以使用。为了更方便地利用 terraform 工具来对内部 IaaS 资源进行管理和操作，我们决定自己开发一个 terra">
@@ -165,7 +165,7 @@ var _hmt = _hmt || [];
                 <span class="level-item has-text-grey">
                     
                     
-                    9 minutes read (About 1404 words)
+                    10 minutes read (About 1435 words)
                 </span>
                 
                 
@@ -204,21 +204,25 @@ var _hmt = _hmt || [];
 <h3 id="Read"><a href="#Read" class="headerlink" title="Read"></a>Read</h3><figure class="highlight golang hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">resourceComputeInstanceRead</span><span class="hljs-params">(d *schema.ResourceData, meta <span class="hljs-keyword">interface</span>&#123;&#125;)</span> <span class="hljs-title">error</span></span> &#123;</span><br><span class="line">    config := meta.(*Config)</span><br><span class="line">    client, err := config.computeClient()</span><br><span class="line">    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;</span><br><span class="line">        <span class="hljs-keyword">return</span> err</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    p := &amp;params.DescribeInstanceParameters&#123;</span><br><span class="line">        InstanceId: d.Id(),</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    rsp, err := client.GetInstance(p)</span><br><span class="line">    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;</span><br><span class="line">        <span class="hljs-keyword">return</span> err</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    instance := &amp;rsp.Data</span><br><span class="line">    d.Set(<span class="hljs-string">"image_id"</span>, instance.ImageId)</span><br><span class="line">    d.Set(<span class="hljs-string">"instance_name"</span>, instance.InstanceName)</span><br><span class="line">    <span class="hljs-comment">// ...</span></span><br><span class="line"></span><br><span class="line">    <span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p><code>Read</code> 通过 InstanceId 对资源状态进行查询，保存至 resource data。</p>
 <h2 id="编译和构建"><a href="#编译和构建" class="headerlink" title="编译和构建"></a>编译和构建</h2><p>上面基本代码框架实现后，我们就可以对 plugin 进行编译和构建了：</p>
-<figure class="highlight bash hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">go build -o terraform-provider-qvm</span><br></pre></td></tr></table></figure>
+<figure class="highlight sh hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">go build -o terraform-provider-qvm</span><br></pre></td></tr></table></figure>
 <p>二进制文件的命名必须遵守以下命名规则：</p>
 <figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">terraform-provider-&lt;NAME&gt;</span><br></pre></td></tr></table></figure>
 <p>构建后，我们手动将二进制拷贝至 terraform 默认的插件目录：<code>${HOME}/.terraform/plguins</code>。</p>
 <h2 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h2><p>进入工作目录，即 <code>tf</code> 文件保存的目录，假设这个目录的结构为：</p>
-<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">terraform/qvm</span><br><span class="line">├── provider.tf</span><br><span class="line">├── resources.tf</span><br><span class="line">└── variables.tf</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">terraform/qvm</span><br><span class="line">├── provider.tf</span><br><span class="line">├── resources.tf</span><br><span class="line">├── variables.tf</span><br><span class="line">└── terraform.tfvars</span><br></pre></td></tr></table></figure>
 <h3 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h3><figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">terraform init</span><br></pre></td></tr></table></figure>
-<h3 id="修改配置"><a href="#修改配置" class="headerlink" title="修改配置"></a>修改配置</h3><p>可以通过 <code>export</code> 或直接修改 <code>.tf</code> 文件，对配置进行修改：</p>
+<h3 id="修改配置"><a href="#修改配置" class="headerlink" title="修改配置"></a>修改配置</h3><p>可以通过 <code>export</code> 或创建 <code>.tfvars</code> 文件，对配置进行修改：</p>
 <figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">export QVM_AK=</span><br><span class="line">export QVM_SK=</span><br></pre></td></tr></table></figure>
 <p>创建 <code>terraform.tfvars</code> 文件：</p>
 <figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">instance_name = &quot;&quot;</span><br><span class="line">count = 1</span><br><span class="line">image = &quot;&quot;</span><br></pre></td></tr></table></figure>
 <h3 id="查看更改"><a href="#查看更改" class="headerlink" title="查看更改"></a>查看更改</h3><figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">terraform plan</span><br></pre></td></tr></table></figure>
 <p>执行后 terraform 会对配置进行合法性校验。</p>
 <h3 id="应用更改"><a href="#应用更改" class="headerlink" title="应用更改"></a>应用更改</h3><figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">terraform apply</span><br></pre></td></tr></table></figure>
+<p>或者指定 <code>.tfvars</code> 文件：</p>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">terraform apply -var-file=&quot;terraform.tfvars&quot;</span><br></pre></td></tr></table></figure>
 <h3 id="销毁"><a href="#销毁" class="headerlink" title="销毁"></a>销毁</h3><figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">terraform destroy</span><br></pre></td></tr></table></figure>
+<p>或者指定 <code>.tfvars</code> 文件：</p>
+<figure class="highlight plain hljs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">terraform destroy -var-file=&quot;terraform.tfvars&quot;</span><br></pre></td></tr></table></figure>
 <h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><p><a href="https://www.terraform.io/docs/extend/writing-custom-providers.html" target="_blank" rel="noopener">https://www.terraform.io/docs/extend/writing-custom-providers.html</a></p>
 <p><a href="https://www.terraform.io/docs/extend/how-terraform-works.html" target="_blank" rel="noopener">https://www.terraform.io/docs/extend/how-terraform-works.html</a></p>
 
@@ -532,19 +536,6 @@ var _hmt = _hmt || [];
             
             <div class="media-content">
                 <div class="content">
-                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T13:42:51.000Z">2019-05-23</time></div>
-                    <a href="/hexo-blog/20190523/HTC-刷机备忘/" class="has-link-black-ter is-size-6">HTC 刷机备忘</a>
-                    <p class="is-size-7 is-uppercase">
-                        
-                    </p>
-                </div>
-            </div>
-        </article>
-        
-        <article class="media">
-            
-            <div class="media-content">
-                <div class="content">
                     <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T13:01:16.000Z">2019-05-23</time></div>
                     <a href="/hexo-blog/20190523/二叉树两个节点之间的最大距离/" class="has-link-black-ter is-size-6">二叉树两个节点之间的最大距离</a>
                     <p class="is-size-7 is-uppercase">
@@ -593,6 +584,19 @@ var _hmt = _hmt || [];
             </div>
         </article>
         
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2018-11-27T07:53:30.000Z">2018-11-27</time></div>
+                    <a href="/hexo-blog/20181127/PLEG-unhealthy-导致节点状态不断在-Ready-NotReady-之间切换问题/" class="has-link-black-ter is-size-6">PLEG unhealthy 导致节点状态不断在 Ready/NotReady 之间切换问题</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
     </div>
 </div>
 
@@ -611,7 +615,7 @@ var _hmt = _hmt || [];
                     <span class="level-item">May 2019</span>
                 </span>
                 <span class="level-end">
-                    <span class="level-item tag">4</span>
+                    <span class="level-item tag">3</span>
                 </span>
             </a>
         </li>
@@ -631,6 +635,17 @@ var _hmt = _hmt || [];
             <a class="level is-marginless" href="/hexo-blog/archives/2018/11/">
                 <span class="level-start">
                     <span class="level-item">November 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/10/">
+                <span class="level-start">
+                    <span class="level-item">October 2018</span>
                 </span>
                 <span class="level-end">
                     <span class="level-item tag">1</span>
@@ -1188,19 +1203,6 @@ var _hmt = _hmt || [];
             
             <div class="media-content">
                 <div class="content">
-                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T13:42:51.000Z">2019-05-23</time></div>
-                    <a href="/hexo-blog/20190523/HTC-刷机备忘/" class="has-link-black-ter is-size-6">HTC 刷机备忘</a>
-                    <p class="is-size-7 is-uppercase">
-                        
-                    </p>
-                </div>
-            </div>
-        </article>
-        
-        <article class="media">
-            
-            <div class="media-content">
-                <div class="content">
                     <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2019-05-23T13:01:16.000Z">2019-05-23</time></div>
                     <a href="/hexo-blog/20190523/二叉树两个节点之间的最大距离/" class="has-link-black-ter is-size-6">二叉树两个节点之间的最大距离</a>
                     <p class="is-size-7 is-uppercase">
@@ -1249,6 +1251,19 @@ var _hmt = _hmt || [];
             </div>
         </article>
         
+        <article class="media">
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2018-11-27T07:53:30.000Z">2018-11-27</time></div>
+                    <a href="/hexo-blog/20181127/PLEG-unhealthy-导致节点状态不断在-Ready-NotReady-之间切换问题/" class="has-link-black-ter is-size-6">PLEG unhealthy 导致节点状态不断在 Ready/NotReady 之间切换问题</a>
+                    <p class="is-size-7 is-uppercase">
+                        
+                    </p>
+                </div>
+            </div>
+        </article>
+        
     </div>
 </div>
 
@@ -1267,7 +1282,7 @@ var _hmt = _hmt || [];
                     <span class="level-item">May 2019</span>
                 </span>
                 <span class="level-end">
-                    <span class="level-item tag">4</span>
+                    <span class="level-item tag">3</span>
                 </span>
             </a>
         </li>
@@ -1287,6 +1302,17 @@ var _hmt = _hmt || [];
             <a class="level is-marginless" href="/hexo-blog/archives/2018/11/">
                 <span class="level-start">
                     <span class="level-item">November 2018</span>
+                </span>
+                <span class="level-end">
+                    <span class="level-item tag">1</span>
+                </span>
+            </a>
+        </li>
+        
+        <li>
+            <a class="level is-marginless" href="/hexo-blog/archives/2018/10/">
+                <span class="level-start">
+                    <span class="level-item">October 2018</span>
                 </span>
                 <span class="level-end">
                     <span class="level-item tag">1</span>
