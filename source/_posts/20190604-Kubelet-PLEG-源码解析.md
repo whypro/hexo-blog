@@ -482,7 +482,7 @@ func (g *GenericPLEG) relist() {
 }
 ```
 
-这里 export 了两个监控指标：`relist_interval` 和 `relist_latency`，它们俩的关系是：
+relist 中 export 了两个监控指标：`relist_interval` 和 `relist_latency`，它们俩的关系是：
 
 ```
 relist_interval = relist_latency + relist_period
@@ -495,8 +495,37 @@ relist_interval = relist_latency + relist_period
 3. 遍历 pod 和 对应的 events，从 container runtime 获取 pod status 更新 cache（记录失败的 Pod，准备下次重试），并将 PLEG event （除了 ContainerChanged 事件）放入 eventChannel
 4. 遍历上次 relist 更新 cache 失败的 Pod，尝试再次获取 pod status 更新 cache
 
+relist 函数通过访问 container runtime 将 pod 和 container 的实际状态更新至 kubelet 的 pod cache。其他模块 (pod worker) 使用的 pod cache，都由 PLEG 模块更新。
 
-从代码里看 PLEG 里的 relist 函数，通过访问 container runtime 将 pod 和 container 的实际状态更新至 kubelet 的 pod cache。其他模块使用的 pod cache，都由 PLEG 模块更新。
+pod lifecycle event 的生成通过 `generateEvents` 函数比较 old state 和 new state 来实现：
+
+``` golang
+func generateEvents(podID types.UID, cid string, oldState, newState plegContainerState) []*PodLifecycleEvent {
+	if newState == oldState {
+		return nil
+	}
+
+	klog.V(4).Infof("GenericPLEG: %v/%v: %v -> %v", podID, cid, oldState, newState)
+	switch newState {
+	case plegContainerRunning:
+		return []*PodLifecycleEvent{{ID: podID, Type: ContainerStarted, Data: cid}}
+	case plegContainerExited:
+		return []*PodLifecycleEvent{{ID: podID, Type: ContainerDied, Data: cid}}
+	case plegContainerUnknown:
+		return []*PodLifecycleEvent{{ID: podID, Type: ContainerChanged, Data: cid}}
+	case plegContainerNonExistent:
+		switch oldState {
+		case plegContainerExited:
+			// We already reported that the container died before.
+			return []*PodLifecycleEvent{{ID: podID, Type: ContainerRemoved, Data: cid}}
+		default:
+			return []*PodLifecycleEvent{{ID: podID, Type: ContainerDied, Data: cid}, {ID: podID, Type: ContainerRemoved, Data: cid}}
+		}
+	default:
+		panic(fmt.Sprintf("unrecognized container state: %v", newState))
+	}
+}
+```
 
 顺便看看 Container Runtime 接口，对于 Container Runtime，我们主要关注 PLEG 用到的两个方法 `GetPods` 和 `GetPodStatus`，参照 `pkg/kubelet/container/runtime.go` 文件：
 
