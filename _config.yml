@@ -86,5 +86,5 @@ deploy:
   repository: git@github.com:whypro/hexo-blog.git
   branch: gh-pages
 
-all_minifier: false
+all_minifier: true
 
