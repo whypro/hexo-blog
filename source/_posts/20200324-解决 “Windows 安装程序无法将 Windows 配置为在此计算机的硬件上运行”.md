@@ -26,10 +26,10 @@ date: 2020-03-24 00:39:00
 
 首先尝试了[这个方法](https://www.dell.com/support/article/zh-cn/sln293812/windows-7-%E6%88%96-windows-10-%E5%AE%89%E8%A3%85%E6%9C%9F%E9%97%B4-windows-%E5%AE%89%E8%A3%85%E7%A8%8B%E5%BA%8F%E6%97%A0%E6%B3%95%E9%85%8D%E7%BD%AE%E4%B8%BA%E5%9C%A8%E6%AD%A4%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%9A%84%E7%A1%AC%E4%BB%B6%E4%B8%8A%E8%BF%90%E8%A1%8C-%E9%94%99%E8%AF%AF?lang=zh)：
 
-1. 在错误屏幕中, 按Shift + F10打开命令提示符 (或在 Windows 搜索栏中键入cmd , 并从搜索结果菜单中选择 "命令提示符")。
-2. 键入cd \ , 然后按 enter 键。
-3. 键入cd x: \windows\system32\oobe ( x是安装 Windows 的驱动器号, 例如 c:\windows\system32\oobe), 然后按 enter 键。
-4. 键入msoobe , 然后按 enter 键。安装过程现在应该会自动继续。
+1. 在错误屏幕中, 按 `Shift + F10` 打开命令提示符 (或在 Windows 搜索栏中键入 `cmd`, 并从搜索结果菜单中选择 "命令提示符")。
+2. 键入 `cd \` , 然后按 `enter` 键。
+3. 键入 `cd x:\windows\system32\oobe` ( `x` 是安装 Windows 的驱动器号, 例如 `c:\windows\system32\oobe`), 然后按 `enter` 键。
+4. 键入 `msoobe` , 然后按 `enter` 键。安装过程现在应该会自动继续。
 5. 卸下安装介质, 系统应完成安装并引导至 Windows。
 
 
