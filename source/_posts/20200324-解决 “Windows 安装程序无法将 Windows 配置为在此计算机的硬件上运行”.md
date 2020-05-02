@@ -22,6 +22,8 @@ date: 2020-03-24 00:39:00
 
 {% asset_img error.jpg %}
 
+<!-- more -->
+
 之前从来没有遇到过这个问题，于是在网上查了很多帖子，尝试了以下几个方法：
 
 首先尝试了[这个方法](https://www.dell.com/support/article/zh-cn/sln293812/windows-7-%E6%88%96-windows-10-%E5%AE%89%E8%A3%85%E6%9C%9F%E9%97%B4-windows-%E5%AE%89%E8%A3%85%E7%A8%8B%E5%BA%8F%E6%97%A0%E6%B3%95%E9%85%8D%E7%BD%AE%E4%B8%BA%E5%9C%A8%E6%AD%A4%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%9A%84%E7%A1%AC%E4%BB%B6%E4%B8%8A%E8%BF%90%E8%A1%8C-%E9%94%99%E8%AF%AF?lang=zh)：
