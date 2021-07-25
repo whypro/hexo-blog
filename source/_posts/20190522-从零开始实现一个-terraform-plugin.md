@@ -7,6 +7,7 @@ tags:
 categories: []
 toc: true
 date: 2019-05-22 14:13:02
+updated: 2021-07-26 00:41:00
 ---
 
 terraform 作为一个优秀的开源基础设施管理、构建工具，官方或第三方提供了很多 plugin 来对接各种云平台（IaaS）。然而在我们平时开发和测试过程中，需要使用内部的 IaaS 服务频繁创建和删除 VM，而目前人工操作的方式比较费时费力，且没有现成的 plugin 可以使用。为了更方便地利用 terraform 工具来对内部 IaaS 资源进行管理和操作，我们决定自己开发一个 terraform plugin。
@@ -288,7 +289,7 @@ go build -o terraform-provider-qvm
 
 二进制文件的命名必须遵守以下命名规则：
 
-```
+``` sh
 terraform-provider-<NAME>
 ```
 
@@ -309,7 +310,7 @@ terraform/qvm
 
 ### 初始化
 
-```
+``` sh
 terraform init
 ```
 
@@ -317,7 +318,7 @@ terraform init
 
 可以通过 `export` 或创建 `.tfvars` 文件，对配置进行修改：
 
-```
+``` sh
 export QVM_AK=
 export QVM_SK=
 ```
@@ -332,7 +333,7 @@ image = ""
 
 ### 查看更改
 
-```
+``` sh
 terraform plan
 ```
 
@@ -340,25 +341,25 @@ terraform plan
 
 ### 应用更改
 
-```
+``` sh
 terraform apply
 ```
 
 或者指定 `.tfvars` 文件：
 
-```
+``` sh
 terraform apply -var-file="terraform.tfvars"
 ```
 
 ### 销毁
 
-```
+``` sh
 terraform destroy
 ```
 
 或者指定 `.tfvars` 文件：
 
-```
+``` sh
 terraform destroy -var-file="terraform.tfvars"
 ```
 

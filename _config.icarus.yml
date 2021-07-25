@@ -128,9 +128,9 @@ article:
     highlight:
         # Code highlight themes
         # https://github.com/highlightjs/highlight.js/tree/master/src/styles
-        theme: atom-one-light
+        theme: monokai
         # Show copy code button
-        clipboard: true
+        clipboard: false
         # Default folding status of the code blocks. Can be "", "folded", "unfolded"
         fold: unfolded
     # Whether to show estimated article reading time
@@ -335,17 +335,17 @@ plugins:
         web_id: 
     # Alerting users about the use of cookies
     # https://www.osano.com/cookieconsent/
-    cookie_consent:
-        # The compliance type. Can be "info", "opt-in", or "opt-out"
-        type: info
-        # Theme of the popup. Can be "block", "edgeless", or "classic"
-        theme: edgeless
-        # Whether the popup should stay static regardless of the page scrolls
-        static: false
-        # Where on the screen the consent popup should display
-        position: bottom-left
-        # URL to your site's cookie policy
-        policyLink: 'https://www.cookiesandyou.com/'
+    #cookie_consent:
+    #    # The compliance type. Can be "info", "opt-in", or "opt-out"
+    #    type: info
+    #    # Theme of the popup. Can be "block", "edgeless", or "classic"
+    #    theme: edgeless
+    #    # Whether the popup should stay static regardless of the page scrolls
+    #    static: false
+    #    # Where on the screen the consent popup should display
+    #    position: bottom-left
+    #    # URL to your site's cookie policy
+    #    policyLink: 'https://www.cookiesandyou.com/'
     # Enable the lightGallery and Justified Gallery plugins
     gallery: true
     # Google Analytics plugin settings
