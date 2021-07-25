@@ -107,4 +107,4 @@ deploy:
   repository: git@github.com:whypro/hexo-blog.git
   branch: gh-pages
 
-#all_minifier: true
+all_minifier: true
