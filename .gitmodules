@@ -1,0 +1,9 @@
+[submodule "themes/alpha-dust"]
+	path = themes/alpha-dust
+	url = git@github.com:klugjo/hexo-theme-alpha-dust.git
+[submodule "themes/freemind.386"]
+	path = themes/freemind.386
+	url = git@github.com:blackshow/hexo-theme-freemind.386.git
+[submodule "themes/next"]
+	path = themes/next
+	url = git@github.com:theme-next/hexo-theme-next.git
