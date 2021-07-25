@@ -10,23 +10,23 @@ git submodule update
 ```
 
 ```sh
-docker build -t hexo-cli .
-docker run -it --entrypoint bash -v ${PWD}:/hexo-blog -v ${HOME}/.ssh:/home/node/.ssh -v ~/.gitconfig:/etc/gitconfig -p 4000:4000 -u 1000:1000 hexo-cli
+docker build -t hexo:dev .
+docker run -it -v ${PWD}:/hexo-blog -v ${HOME}/.ssh:/home/node/.ssh -v ~/.gitconfig:/etc/gitconfig -w /hexo-blog -p 4000:4000 -u ${UID}:${GID} hexo:dev
 ```
 
 ## Use
-
-### Local Serve
-
-```sh
-hexo serve
-```
 
 ### Generate
 
 ```sh
 hexo clean
 hexo generate
+```
+
+### Local Serve
+
+```sh
+hexo serve
 ```
 
 ### Deploy
