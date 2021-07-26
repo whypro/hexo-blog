@@ -1,5 +1,5 @@
 ---
-title: 《Google SRE 工作手册》读书笔记
+title: 《Google SRE 工作手册》阅读笔记
 tags:
   - SRE
   - 读书笔记
