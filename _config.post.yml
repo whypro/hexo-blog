@@ -1,0 +1,109 @@
+# Sidebar configurations.
+# Please be noted that a sidebar is only visible when it has at least one widget
+sidebar:
+    # Left sidebar configurations
+    left:
+        # Whether the sidebar sticks to the top when page scrolls
+        sticky: true
+    # Right sidebar configurations
+    right:
+        # Whether the sidebar sticks to the top when page scrolls
+        sticky: false
+# Sidebar widget configurations
+# http://ppoffice.github.io/hexo-theme-icarus/categories/Widgets/
+widgets:
+    # Profile widget configurations
+    #-
+    #    # Where should the widget be placed, left sidebar or right sidebar
+    #    position: left
+    #    type: profile
+    #    # Author name
+    #    author: whypro
+    #    # Author title
+    #    author_title: "Don't think twice, it's all right."
+    #    # Author's current location
+    #    location: Shanghai
+    #    # URL or path to the avatar image
+    #    avatar: 
+    #    # Whether show the rounded avatar image
+    #    avatar_rounded: true
+    #    # Email address for the Gravatar
+    #    gravatar: whypro@live.com
+    #    # URL or path for the follow button
+    #    follow_link: 'https://github.com/whypro'
+    #    # Links to be shown on the bottom of the profile widget
+    #    social_links:
+    #        Github:
+    #            icon: fab fa-github
+    #            url: 'https://github.com/whypro'
+    #        #Facebook:
+    #        #    icon: fab fa-facebook
+    #        #    url: 'https://facebook.com'
+    #        #Twitter:
+    #        #    icon: fab fa-twitter
+    #        #    url: 'https://twitter.com'
+    #        #Dribbble:
+    #        #    icon: fab fa-dribbble
+    #        #    url: 'https://dribbble.com'
+    #        #RSS:
+    #        #    icon: fas fa-rss
+    #        #    url: /
+    # Table of contents widget configurations
+    -
+        # Where should the widget be placed, left sidebar or right sidebar
+        position: left
+        type: toc
+        # Whether to show the index of each heading
+        index: true
+        # Whether to collapse sub-headings when they are out-of-view
+        collapsed: true
+        # Maximum level of headings to show (1-6)
+        depth: 3
+    # Tags widget configurations
+    #-
+    #    # Where should the widget be placed, left sidebar or right sidebar
+    #    position: left
+    #    type: tags
+    # Recommendation links widget configurations
+    #-
+    #    # Where should the widget be placed, left sidebar or right sidebar
+    #    position: left
+    #    type: links
+    #    # Names and URLs of the sites
+    #    links:
+    #        Hexo: 'https://hexo.io'
+    #        Icarus Theme: 'https://ppoffice.github.io/hexo-theme-icarus/'
+    #        Github: 'https://github.com/whypro'
+    # Categories widget configurations
+    #-
+    #    # Where should the widget be placed, left sidebar or right sidebar
+    #    position: left
+    #    type: categories
+    # Recent posts widget configurations
+    -
+        # Where should the widget be placed, left sidebar or right sidebar
+        position: left
+        type: recent_posts
+    # Archives widget configurations
+    #-
+    #    # Where should the widget be placed, left sidebar or right sidebar
+    #    position: left
+    #    type: archives
+    # Google FeedBurner email subscription widget configurations
+    #-
+    #    # Where should the widget be placed, left sidebar or right sidebar
+    #    position: left
+    #    type: subscribe_email
+    #    # Hint text under the email input
+    #    description: 
+    #    # Feedburner ID
+    #    feedburner_id: ''
+    # Google AdSense unit configurations
+    #-
+    #    # Where should the widget be placed, left sidebar or right sidebar
+    #    position: left
+    #    type: adsense
+    #    # AdSense client ID
+    #    client_id: ''
+    #    # AdSense AD unit ID
+    #    slot_id: ''
